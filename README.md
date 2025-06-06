@@ -69,19 +69,63 @@ List all agents in a specific queue (requires org permissions).
 
 ## Development
 
+This project uses [Bun](https://bun.sh) for development tooling while maintaining Node.js compatibility for runtime.
+
+### Prerequisites
+
+- Node.js >= 18.0.0 (for running the MCP server)
+- Bun >= 1.0.0 (for development)
+
+### Setup
+
 ```bash
 # Clone the repository
 git clone https://github.com/anthropics/server-azure-devops.git
 cd server-azure-devops
 
-# Install dependencies
-npm install
+# Install dependencies with Bun (faster than npm)
+bun install
 
-# Build
-npm run build
+# Copy environment variables
+cp .env.example .env
+# Edit .env with your Azure DevOps credentials
+```
 
-# Run locally
-npm start
+### Development Workflow
+
+```bash
+# Run in development mode with hot reload
+bun run dev
+
+# Run tests
+bun test
+
+# Type checking
+bun run typecheck
+
+# Linting
+bun run lint
+
+# Build for production (Node.js)
+bun run build
+
+# Verify Node.js compatibility
+bun run verify:node
+```
+
+### Building for Distribution
+
+The MCP server is built to run on Node.js:
+
+```bash
+# Build TypeScript to JavaScript
+bun run build
+
+# The built server can be run with Node.js
+node dist/index.js
+
+# Or via npm scripts
+bun run start
 ```
 
 ## License

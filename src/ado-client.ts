@@ -197,7 +197,7 @@ export class AzureDevOpsClient {
               },
             };
           }
-        } catch (poolError) {
+        } catch {
           // Skip pools we can't access
           continue;
         }
