@@ -2,6 +2,8 @@
 
 An MCP (Model Context Protocol) server that wraps Azure DevOps APIs for agent and queue management within a project context.
 
+**Developer**: Ryan Reynolds ([@rxreyn3](https://github.com/rxreyn3))
+
 ## Features
 
 - **Project-scoped access**: Works within your project context
@@ -80,8 +82,8 @@ This project uses [Bun](https://bun.sh) for development tooling while maintainin
 
 ```bash
 # Clone the repository
-git clone https://github.com/anthropics/server-azure-devops.git
-cd server-azure-devops
+git clone https://github.com/rxreyn3/ado-mcp-server.git
+cd ado-mcp-server
 
 # Install dependencies with Bun (faster than npm)
 bun install

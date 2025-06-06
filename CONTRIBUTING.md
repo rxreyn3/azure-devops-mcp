@@ -26,8 +26,8 @@ We use Bun as our development toolchain because it provides:
 
 1. Fork and clone the repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/server-azure-devops.git
-   cd server-azure-devops
+   git clone https://github.com/YOUR_USERNAME/ado-mcp-server.git
+   cd ado-mcp-server
    ```
 
 2. Install dependencies:
