@@ -89,7 +89,7 @@ export class AzureDevOpsMCPServer {
             properties: {
               queueId: {
                 type: 'number',
-                description: 'Queue ID',
+                description: 'Queue ID (not poolId) - use the queue\'s ID from list_project_queues',
               },
             },
             required: ['queueId'],

@@ -19,6 +19,13 @@ export interface AgentInfo {
   osDescription?: string;
 }
 
+// Agent status codes from Azure DevOps API
+export enum AgentStatus {
+  Offline = '1',
+  Online = '2',
+  Unavailable = '3'
+}
+
 export interface PermissionError {
   type: 'permission';
   message: string;
@@ -134,7 +141,7 @@ export class AzureDevOpsClient {
       const agentInfos: AgentInfo[] = agents.map((agent) => ({
         id: agent.id!,
         name: agent.name!,
-        status: String(agent.status || 'unknown'),
+        status: this.getAgentStatusName(agent.status),
         enabled: agent.enabled || false,
         version: agent.version,
         osDescription: agent.oSDescription,
@@ -183,7 +190,7 @@ export class AzureDevOpsClient {
             const agentInfo: AgentInfo = {
               id: agent.id!,
               name: agent.name!,
-              status: String(agent.status || 'unknown'),
+              status: this.getAgentStatusName(agent.status),
               enabled: agent.enabled || false,
               version: agent.version,
               osDescription: agent.oSDescription,
@@ -224,6 +231,19 @@ export class AzureDevOpsClient {
         };
       }
       return this.handleError(error);
+    }
+  }
+
+  private getAgentStatusName(status: number | undefined): string {
+    switch (String(status)) {
+      case AgentStatus.Offline:
+        return 'offline';
+      case AgentStatus.Online:
+        return 'online';
+      case AgentStatus.Unavailable:
+        return 'unavailable';
+      default:
+        return 'unknown';
     }
   }
 
