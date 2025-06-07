@@ -19,7 +19,7 @@ export class AzureDevOpsMCPServer {
     this.server = new Server(
       {
         name: '@rxreyn3/azure-devops-mcp',
-        version: '0.1.0',
+        version: '1.0.0',
       },
       {
         capabilities: {
