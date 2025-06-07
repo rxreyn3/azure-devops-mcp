@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version type (patch, minor, major)'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        registry-url: 'https://registry.npmjs.org'
+    
+    - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
+    
+    - name: Configure Git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+    
+    - name: Install dependencies
+      run: bun install
+    
+    - name: Run tests
+      run: bun test
+    
+    - name: Bump version
+      id: version
+      run: |
+        npm version ${{ github.event.inputs.version }} -m "chore: release %s"
+        echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+        echo "tag=v$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+    
+    - name: Update server version
+      run: |
+        VERSION=${{ steps.version.outputs.version }}
+        sed -i "s/version: '.*'/version: '$VERSION'/" src/server.ts
+        git add src/server.ts
+        git commit --amend --no-edit
+    
+    - name: Push changes
+      run: |
+        git push
+        git push --tags
+    
+    - name: Build
+      run: bun run build
+    
+    - name: Publish to npm
+      run: npm publish --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.version.outputs.tag }}
+        release_name: Release ${{ steps.version.outputs.tag }}
+        body: |
+          ## Changes in this release
+          
+          See [commit history](https://github.com/${{ github.repository }}/compare/v${{ steps.version.outputs.previous }}...${{ steps.version.outputs.tag }}) for details.
+          
+          ## Installation
+          ```bash
+          npm install @rxreyn3/azure-devops-mcp@${{ steps.version.outputs.version }}
+          ```
+        draft: false
+        prerelease: false
