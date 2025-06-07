@@ -20,6 +20,8 @@
     "test": "bun test",
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
+    "test:unit": "bun test tests/unit",
+    "test:integration": "bun test tests/integration",
     "lint": "bunx eslint src --ext .ts",
     "format": "bunx prettier --write \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
@@ -59,11 +61,13 @@
   "devDependencies": {
     "@eslint/js": "^9.28.0",
     "@types/bun": "^1.2.15",
+    "@types/nock": "^11.1.0",
     "@types/node": "^22.15.30",
     "@typescript-eslint/eslint-plugin": "^8.33.1",
     "@typescript-eslint/parser": "^8.33.1",
     "eslint": "^9.28.0",
     "eslint-config-prettier": "^10.1.5",
+    "nock": "^14.0.5",
     "prettier": "^3.5.3",
     "typescript": "^5.8.3"
   }
