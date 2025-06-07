@@ -1,0 +1,32 @@
+# Source files
+src/
+tests/
+
+# Config files
+.env*
+.gitignore
+tsconfig.json
+eslint.config.js
+bun.lockb
+
+# Development files
+*.log
+.DS_Store
+node_modules/
+coverage/
+
+# Documentation
+docs/
+*.md
+!README.md
+!LICENSE
+
+# Scripts
+scripts/
+
+# Session files
+session_*.md
+
+# IDE
+.vscode/
+.idea/
