@@ -27,7 +27,8 @@
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
     "prerelease": "bun run lint && bun run typecheck && bun run test && bun run build",
-    "verify:node": "bun run build && node scripts/test-node-compat.js"
+    "verify:node": "bun run build && node scripts/test-node-compat.js",
+    "prepublishOnly": "bun run clean && bun run build"
   },
   "keywords": [
     "mcp",
