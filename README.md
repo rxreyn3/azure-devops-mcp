@@ -14,7 +14,7 @@ An MCP (Model Context Protocol) server that wraps Azure DevOps APIs for agent an
 ## Installation
 
 ```bash
-npm install -g @modelcontextprotocol/server-azure-devops
+npm install -g @rxreyn3/azure-devops-mcp
 ```
 
 ## Configuration
@@ -41,7 +41,7 @@ Add to your Claude Desktop configuration:
   "mcpServers": {
     "azure-devops": {
       "command": "npx",
-      "args": ["@modelcontextprotocol/server-azure-devops"],
+      "args": ["@rxreyn3/azure-devops-mcp"],
       "env": {
         "ADO_ORGANIZATION": "https://dev.azure.com/yourorg",
         "ADO_PROJECT": "YourProject",

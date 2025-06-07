@@ -18,7 +18,7 @@ export class AzureDevOpsMCPServer {
     this.adoClient = new AzureDevOpsClient(config);
     this.server = new Server(
       {
-        name: '@modelcontextprotocol/server-azure-devops',
+        name: '@rxreyn3/azure-devops-mcp',
         version: '0.1.0',
       },
       {
