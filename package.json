@@ -42,7 +42,7 @@
   "author": "Ryan Reynolds <rxreyn3@github.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/rxreyn3/azure-devops-mcp.git"
+    "url": "git+https://github.com/rxreyn3/azure-devops-mcp.git"
   },
   "license": "MIT",
   "type": "module",
