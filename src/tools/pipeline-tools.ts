@@ -1,8 +1,9 @@
 import { ToolDefinition } from '../types/tool-types.js';
 import { BuildClient } from '../clients/build-client.js';
-import { formatPipelineSummary } from '../utils/formatters.js';
+import { formatPipelineSummary, formatErrorResponse } from '../utils/formatters.js';
 import { BuildStatus } from 'azure-devops-node-api/interfaces/BuildInterfaces.js';
 import { PipelineInfo } from '../types/api-types.js';
+import { ensureString } from '../utils/validators.js';
 
 export function createPipelineTools(client: BuildClient): Record<string, ToolDefinition> {
   return {
@@ -43,14 +44,7 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
         );
 
         if (!result.success) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(result.error, null, 2),
-              },
-            ],
-          };
+          return formatErrorResponse(result.error);
         }
 
         const summary = {
@@ -110,14 +104,7 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
         const result = await client.getDefinition(typedArgs.definitionId);
 
         if (!result.success) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(result.error, null, 2),
-              },
-            ],
-          };
+          return formatErrorResponse(result.error);
         }
 
         const pipeline = result.data;
@@ -147,7 +134,7 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
           id: pipeline.id!,
           name: pipeline.name!,
           path: pipeline.path || '',
-          type: String(pipeline.type),
+          type: pipeline.type === 2 ? 'yaml' : ensureString(pipeline.type, 'build'),
           queueStatus: pipeline.queueStatus,
         };
 
@@ -158,7 +145,12 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
 
         // Include triggers if requested
         if (typedArgs.includeTriggers !== false && pipeline.triggers) {
-          config.triggers = pipeline.triggers as any;
+          config.triggers = pipeline.triggers as {
+            branchFilters?: string[];
+            pathFilters?: string[];
+            continuousIntegration?: boolean;
+            pullRequestValidation?: boolean;
+          };
         }
 
         // Include repository info
@@ -174,7 +166,7 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
         // Include process info
         if (pipeline.process) {
           config.process = {
-            type: (pipeline.process as any).type,
+            type: (pipeline.process as { type?: string }).type,
           };
         }
 

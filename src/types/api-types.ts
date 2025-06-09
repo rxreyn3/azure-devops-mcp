@@ -24,9 +24,11 @@ export interface PermissionError {
   suggestion: string;
 }
 
+export type ApiError = PermissionError | { type: 'not_found' | 'api_error'; message: string };
+
 export type ApiResult<T> =
   | { success: true; data: T }
-  | { success: false; error: PermissionError | { type: 'not_found' | 'api_error'; message: string } };
+  | { success: false; error: ApiError };
 
 // Build-related types
 export interface BuildInfo {
