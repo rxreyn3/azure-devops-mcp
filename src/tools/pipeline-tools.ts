@@ -285,7 +285,16 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
           }
           byDefinition[defName].total++;
           if (b.result === 'Succeeded') byDefinition[defName].succeeded++;
-          if (b.result === 'Failed') byDefinition[defName].failed++;
+          if (b.result === 'Failed') {
+            byDefinition[defName].failed++;
+            // For now, track basic failure info
+            // Future enhancement: fetch detailed build timeline to get specific failure reasons
+            if (byDefinition[defName].failureReasons.length === 0) {
+              byDefinition[defName].failureReasons.push(
+                'Build failures detected - use get_build_details for specific error information'
+              );
+            }
+          }
           if (b.result === 'Canceled') byDefinition[defName].canceled++;
         });
 

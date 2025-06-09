@@ -16,6 +16,18 @@ export interface AgentInfo {
   osDescription?: string;
 }
 
+export interface ProjectAgentInfo extends AgentInfo {
+  poolName: string;
+  queueId: number;
+  queueName: string;
+}
+
+export interface ListAgentsOptions {
+  nameFilter?: string;
+  poolNameFilter?: string;
+  onlyOnline?: boolean;
+}
+
 
 export interface PermissionError {
   type: 'permission';
