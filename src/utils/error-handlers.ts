@@ -19,16 +19,18 @@ export function createNotFoundError(resource: string, identifier: string | numbe
   };
 }
 
-export function createApiError(message: string, details?: any) {
+export function createApiError(message: string, details?: unknown) {
   return {
     type: 'api_error' as const,
     message: details ? `${message}: ${JSON.stringify(details)}` : message
   };
 }
 
-export function handleAzureDevOpsError(error: any, operation: string): ApiResult<any> {
-  if (error.statusCode === 401 || error.statusCode === 403) {
-    const permissionMatch = error.message?.match(/permission|access|authorization/i);
+export function handleAzureDevOpsError(error: unknown, operation: string): ApiResult<unknown> {
+  const errorObj = error as { statusCode?: number; message?: string };
+  
+  if (errorObj.statusCode === 401 || errorObj.statusCode === 403) {
+    const permissionMatch = errorObj.message?.match(/permission|access|authorization/i);
     const permission = permissionMatch ? 'appropriate' : 'higher-level';
     
     return {
@@ -37,7 +39,7 @@ export function handleAzureDevOpsError(error: any, operation: string): ApiResult
     };
   }
 
-  if (error.statusCode === 404) {
+  if (errorObj.statusCode === 404) {
     return {
       success: false,
       error: createNotFoundError('Resource', 'requested')
@@ -47,8 +49,8 @@ export function handleAzureDevOpsError(error: any, operation: string): ApiResult
   return {
     success: false,
     error: createApiError(
-      error.message || 'Unknown error occurred',
-      error.statusCode
+      errorObj.message || 'Unknown error occurred',
+      errorObj.statusCode
     )
   };
 }

@@ -1,5 +1,5 @@
 import { ToolDefinition } from '../types/tool-types.js';
-import { BuildClient } from '../clients/build-client.js';
+import { BuildClient, BuildFilter, QueueBuildOptions, BuildUpdateOptions } from '../clients/build-client.js';
 import { BuildStatus, BuildResult, BuildReason } from 'azure-devops-node-api/interfaces/BuildInterfaces.js';
 
 export function createBuildTools(client: BuildClient): Record<string, ToolDefinition> {
@@ -48,58 +48,59 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
           required: [],
         },
       },
-      handler: async (args: {
-        status?: string;
-        result?: string;
-        top?: number;
-        definitionId?: number;
-        requestedFor?: string;
-        sinceHours?: number;
-        branchName?: string;
-      }) => {
+      handler: async (args: unknown) => {
+        const typedArgs = args as {
+          status?: string;
+          result?: string;
+          top?: number;
+          definitionId?: number;
+          requestedFor?: string;
+          sinceHours?: number;
+          branchName?: string;
+        };
         // Build filter based on arguments
-        const filter: any = {
-          top: args.top || 20,
+        const filter: BuildFilter = {
+          top: typedArgs.top || 20,
         };
 
         // Handle status filter
-        if (args.status && args.status !== 'all') {
+        if (typedArgs.status && typedArgs.status !== 'all') {
           const statusMap: { [key: string]: BuildStatus } = {
             inProgress: BuildStatus.InProgress,
             completed: BuildStatus.Completed,
             notStarted: BuildStatus.NotStarted,
           };
-          filter.statusFilter = statusMap[args.status];
+          filter.statusFilter = statusMap[typedArgs.status];
         }
 
         // Handle result filter
-        if (args.result && args.result !== 'all') {
+        if (typedArgs.result && typedArgs.result !== 'all') {
           const resultMap: { [key: string]: BuildResult } = {
             succeeded: BuildResult.Succeeded,
             failed: BuildResult.Failed,
             canceled: BuildResult.Canceled,
             partiallySucceeded: BuildResult.PartiallySucceeded,
           };
-          filter.resultFilter = resultMap[args.result];
+          filter.resultFilter = resultMap[typedArgs.result];
         }
 
         // Handle time filter
-        if (args.sinceHours) {
-          filter.minTime = new Date(Date.now() - args.sinceHours * 60 * 60 * 1000);
+        if (typedArgs.sinceHours) {
+          filter.minTime = new Date(Date.now() - typedArgs.sinceHours * 60 * 60 * 1000);
         } else {
           // Default to last 24 hours
           filter.minTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
         }
 
         // Handle other filters
-        if (args.definitionId) {
-          filter.definitions = [args.definitionId];
+        if (typedArgs.definitionId) {
+          filter.definitions = [typedArgs.definitionId];
         }
-        if (args.requestedFor) {
-          filter.requestedFor = args.requestedFor;
+        if (typedArgs.requestedFor) {
+          filter.requestedFor = typedArgs.requestedFor;
         }
-        if (args.branchName) {
-          filter.branchName = args.branchName;
+        if (typedArgs.branchName) {
+          filter.branchName = typedArgs.branchName;
         }
 
         const result = await client.getBuilds(filter);
@@ -176,16 +177,17 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
           required: ['buildId'],
         },
       },
-      handler: async (args: {
-        buildId: number;
-        includeTimeline?: boolean;
-        includeChanges?: boolean;
-      }) => {
-        const includeTimeline = args.includeTimeline !== false;
-        const includeChanges = args.includeChanges !== false;
+      handler: async (args: unknown) => {
+        const typedArgs = args as {
+          buildId: number;
+          includeTimeline?: boolean;
+          includeChanges?: boolean;
+        };
+        const includeTimeline = typedArgs.includeTimeline !== false;
+        const includeChanges = typedArgs.includeChanges !== false;
 
         // Get build details
-        const buildResult = await client.getBuild(args.buildId);
+        const buildResult = await client.getBuild(typedArgs.buildId);
         if (!buildResult.success) {
           return {
             content: [
@@ -197,13 +199,51 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
           };
         }
 
-        const response: any = {
+        interface BuildDetailsResponse {
+          build: typeof buildResult.data;
+          timeline?: {
+            summary: {
+              totalRecords: number;
+              failedRecords: number;
+              warningCount: number;
+              errorCount: number;
+            };
+            stages: Array<{
+              name: string;
+              state: string | undefined;
+              result: string | undefined;
+              startTime?: Date;
+              finishTime?: Date;
+              duration?: string;
+              tasks: Array<{
+                name: string;
+                state: string | undefined;
+                result: string | undefined;
+                startTime?: Date;
+                finishTime?: Date;
+                duration?: string;
+                errorCount?: number;
+                warningCount?: number;
+                logId?: number;
+              }>;
+            }>;
+          };
+          changes?: Array<{
+            id: string;
+            message: string | null;
+            author: { displayName?: string; uniqueName?: string };
+            timestamp: Date;
+            location: string | null;
+          }>;
+        }
+        
+        const response: BuildDetailsResponse = {
           build: buildResult.data,
         };
 
         // Get timeline if requested
         if (includeTimeline) {
-          const timelineResult = await client.getBuildTimeline(args.buildId);
+          const timelineResult = await client.getBuildTimeline(typedArgs.buildId);
           if (timelineResult.success) {
             // Group timeline records by parent for better readability
             const rootRecords = timelineResult.data.filter(r => !r.parentId);
@@ -247,15 +287,20 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
 
         // Get changes if requested
         if (includeChanges) {
-          const changesResult = await client.getBuildChanges(args.buildId, 10, true);
+          const changesResult = await client.getBuildChanges(typedArgs.buildId, 10, true);
           if (changesResult.success) {
-            response.changes = changesResult.data.map(change => ({
-              id: change.id,
-              message: change.message,
-              author: change.author,
-              timestamp: change.timestamp,
-              location: change.location,
-            }));
+            response.changes = changesResult.data
+              .filter(change => change.id !== undefined && change.timestamp !== undefined)
+              .map(change => ({
+                id: change.id!,
+                message: change.message || null,
+                author: {
+                  displayName: change.author?.displayName,
+                  uniqueName: change.author?.uniqueName,
+                },
+                timestamp: change.timestamp!,
+                location: change.location || null,
+              }));
           }
         }
 
@@ -306,26 +351,27 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
           required: ['definitionId'],
         },
       },
-      handler: async (args: {
-        definitionId: number;
-        sourceBranch?: string;
-        parameters?: Record<string, string>;
-        priority?: 'low' | 'belowNormal' | 'normal' | 'aboveNormal' | 'high';
-        reason?: string;
-      }) => {
-        const options: any = {
-          definition: { id: args.definitionId },
-          sourceBranch: args.sourceBranch,
-          priority: args.priority,
+      handler: async (args: unknown) => {
+        const typedArgs = args as {
+          definitionId: number;
+          sourceBranch?: string;
+          parameters?: Record<string, string>;
+          priority?: 'low' | 'belowNormal' | 'normal' | 'aboveNormal' | 'high';
+          reason?: string;
+        };
+        const options: QueueBuildOptions = {
+          definition: { id: typedArgs.definitionId },
+          sourceBranch: typedArgs.sourceBranch,
+          priority: typedArgs.priority,
         };
 
         // Handle parameters
-        if (args.parameters) {
-          options.parameters = JSON.stringify(args.parameters);
+        if (typedArgs.parameters) {
+          options.parameters = JSON.stringify(typedArgs.parameters);
         }
 
         // Handle reason
-        if (args.reason) {
+        if (typedArgs.reason) {
           const reasonMap: { [key: string]: BuildReason } = {
             manual: BuildReason.Manual,
             individualCI: BuildReason.IndividualCI,
@@ -337,7 +383,7 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
             buildCompletion: BuildReason.BuildCompletion,
             resourceTrigger: BuildReason.ResourceTrigger,
           };
-          options.reason = reasonMap[args.reason] || BuildReason.Manual;
+          options.reason = reasonMap[typedArgs.reason] || BuildReason.Manual;
         }
 
         const result = await client.queueBuild(options);
@@ -365,7 +411,7 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
                     buildNumber: result.data.buildNumber,
                     status: result.data.status,
                     queueTime: result.data.queueTime,
-                    url: `https://dev.azure.com/${(client as any).config.organization}/${(client as any).config.project}/_build/results?buildId=${result.data.id}`,
+                    url: `https://dev.azure.com/${client.getConfig().organization}/${client.getConfig().project}/_build/results?buildId=${result.data.id}`,
                   },
                 },
                 null,
@@ -404,19 +450,20 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
           required: ['buildId'],
         },
       },
-      handler: async (args: {
-        buildId: number;
-        logId?: number;
-        startLine?: number;
-        endLine?: number;
-      }) => {
+      handler: async (args: unknown) => {
+        const typedArgs = args as {
+          buildId: number;
+          logId?: number;
+          startLine?: number;
+          endLine?: number;
+        };
         // If specific log requested, get its content
-        if (args.logId) {
+        if (typedArgs.logId) {
           const linesResult = await client.getBuildLogLines(
-            args.buildId,
-            args.logId,
-            args.startLine,
-            args.endLine,
+            typedArgs.buildId,
+            typedArgs.logId,
+            typedArgs.startLine,
+            typedArgs.endLine,
           );
 
           if (!linesResult.success) {
@@ -436,8 +483,8 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
                 type: 'text',
                 text: JSON.stringify(
                   {
-                    buildId: args.buildId,
-                    logId: args.logId,
+                    buildId: typedArgs.buildId,
+                    logId: typedArgs.logId,
                     lineCount: linesResult.data.length,
                     lines: linesResult.data,
                   },
@@ -450,7 +497,7 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
         }
 
         // Otherwise, list all logs
-        const logsResult = await client.getBuildLogs(args.buildId);
+        const logsResult = await client.getBuildLogs(typedArgs.buildId);
 
         if (!logsResult.success) {
           return {
@@ -469,7 +516,7 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
               type: 'text',
               text: JSON.stringify(
                 {
-                  buildId: args.buildId,
+                  buildId: typedArgs.buildId,
                   logCount: logsResult.data.length,
                   logs: logsResult.data.map(log => ({
                     id: log.id,
@@ -510,10 +557,11 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
           required: ['buildId', 'action'],
         },
       },
-      handler: async (args: { buildId: number; action: string }) => {
-        let updateOptions: any = {};
+      handler: async (args: unknown) => {
+        const typedArgs = args as { buildId: number; action: string };
+        let updateOptions: BuildUpdateOptions = {};
 
-        switch (args.action) {
+        switch (typedArgs.action) {
           case 'cancel':
             updateOptions.status = BuildStatus.Cancelling;
             break;
@@ -530,7 +578,7 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
                   type: 'text',
                   text: JSON.stringify(
                     {
-                      error: `Invalid action: ${args.action}`,
+                      error: `Invalid action: ${typedArgs.action}`,
                       validActions: ['cancel', 'retain', 'unretain'],
                     },
                     null,
@@ -541,7 +589,7 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
             };
         }
 
-        const result = await client.updateBuild(args.buildId, updateOptions);
+        const result = await client.updateBuild(typedArgs.buildId, updateOptions);
 
         if (!result.success) {
           return {
@@ -560,7 +608,7 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
               type: 'text',
               text: JSON.stringify(
                 {
-                  message: `Build ${args.action} action completed successfully`,
+                  message: `Build ${typedArgs.action} action completed successfully`,
                   build: {
                     id: result.data.id,
                     buildNumber: result.data.buildNumber,

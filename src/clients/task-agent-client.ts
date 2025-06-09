@@ -89,12 +89,13 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
                 queueId: undefined
               });
             }
-          } catch (poolError) {
+          } catch {
             // Skip pools we can't access
           }
         }
-      } catch (error: any) {
-        if (error.statusCode === 401 || error.statusCode === 403) {
+      } catch (error) {
+        const errorObj = error as { statusCode?: number };
+        if (errorObj.statusCode === 401 || errorObj.statusCode === 403) {
           throw createPermissionError('search for agents', 'Agent Pools (Read)');
         }
         throw error;
@@ -130,8 +131,9 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
         return agents
           .filter((a): a is Required<TaskAgent> => a.id !== undefined && a.name !== undefined)
           .map(a => this.mapAgentInfo(a));
-      } catch (error: any) {
-        if (error.statusCode === 401 || error.statusCode === 403) {
+      } catch (error) {
+        const errorObj = error as { statusCode?: number };
+        if (errorObj.statusCode === 401 || errorObj.statusCode === 403) {
           throw createPermissionError(
             `list agents in queue '${queueResult.data.name}'`,
             'Agent Pools (Read)'
@@ -153,13 +155,13 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
     };
   }
 
-  private getAgentStatusString(status: any): string {
+  private getAgentStatusString(status: AgentStatus | undefined): string {
     const statusMap: { [key: string]: string } = {
       [AgentStatus.Offline]: 'Offline',
       [AgentStatus.Online]: 'Online',
       [AgentStatus.Unavailable]: 'Unavailable'
     };
     
-    return statusMap[status?.toString()] || 'Unknown';
+    return status !== undefined ? statusMap[status] || 'Unknown' : 'Unknown';
   }
 }

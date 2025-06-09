@@ -29,11 +29,16 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
           required: [],
         },
       },
-      handler: async (args: any) => {
+      handler: async (args: unknown) => {
+        const typedArgs = args as {
+          name?: string;
+          path?: string;
+          includeLatestBuild?: boolean;
+        };
         const result = await client.getDefinitions(
-          args.name,
-          args.path,
-          args.includeLatestBuild,
+          typedArgs.name,
+          typedArgs.path,
+          typedArgs.includeLatestBuild,
           50
         );
 
@@ -96,8 +101,13 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
           required: ['definitionId'],
         },
       },
-      handler: async (args: any) => {
-        const result = await client.getDefinition(args.definitionId);
+      handler: async (args: unknown) => {
+        const typedArgs = args as {
+          definitionId: number;
+          includeVariables?: boolean;
+          includeTriggers?: boolean;
+        };
+        const result = await client.getDefinition(typedArgs.definitionId);
 
         if (!result.success) {
           return {
@@ -111,7 +121,28 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
         }
 
         const pipeline = result.data;
-        const config: any = {
+        interface PipelineConfig {
+          id: number;
+          name: string;
+          path: string;
+          type: string;
+          repository?: {
+            name: string;
+            type: string;
+            url: string;
+            defaultBranch?: string;
+          };
+          variables?: Record<string, { value?: string; isSecret?: boolean }>;
+          triggers?: {
+            branchFilters?: string[];
+            pathFilters?: string[];
+            continuousIntegration?: boolean;
+            pullRequestValidation?: boolean;
+          };
+          process?: unknown;
+        }
+        
+        const config: PipelineConfig = {
           id: pipeline.id,
           name: pipeline.name,
           path: pipeline.path,
@@ -190,14 +221,18 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
           required: [],
         },
       },
-      handler: async (args: any) => {
-        const hours = args.hours || 24;
+      handler: async (args: unknown) => {
+        const typedArgs = args as {
+          definitionId?: number;
+          hours?: number;
+        };
+        const hours = typedArgs.hours || 24;
         const minTime = new Date(Date.now() - hours * 60 * 60 * 1000);
 
         // Get all builds in the time range
         const buildsResult = await client.getBuilds({
           minTime,
-          definitions: args.definitionId ? [args.definitionId] : undefined,
+          definitions: typedArgs.definitionId ? [typedArgs.definitionId] : undefined,
           statusFilter: BuildStatus.Completed,
           top: 100,
         });
@@ -236,7 +271,14 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
         }
 
         // Group by definition
-        const byDefinition: Record<string, any> = {};
+        interface DefinitionStats {
+          total: number;
+          succeeded: number;
+          failed: number;
+          canceled: number;
+          failureReasons: string[];
+        }
+        const byDefinition: Record<string, DefinitionStats> = {};
         builds.forEach(b => {
           const defName = b.definition.name;
           if (!byDefinition[defName]) {

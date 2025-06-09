@@ -7,7 +7,7 @@ import { createPipelineTools } from './pipeline-tools.js';
 
 export interface ToolRegistry {
   tools: Tool[];
-  handlers: Map<string, (args: any) => Promise<any>>;
+  handlers: Map<string, (args: unknown) => Promise<unknown>>;
 }
 
 export function createToolRegistry(
@@ -28,7 +28,7 @@ export function createToolRegistry(
 
   // Extract tools and handlers
   const tools: Tool[] = [];
-  const handlers = new Map<string, (args: any) => Promise<any>>();
+  const handlers = new Map<string, (args: unknown) => Promise<unknown>>();
 
   Object.entries(allTools).forEach(([name, definition]) => {
     tools.push(definition.tool);

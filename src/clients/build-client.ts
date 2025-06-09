@@ -10,7 +10,8 @@ import {
   BuildResult,
   BuildReason,
   BuildQueryOrder,
-  QueryDeletedOption
+  QueryDeletedOption,
+  DefinitionQueueStatus
 } from 'azure-devops-node-api/interfaces/BuildInterfaces.js';
 import { AzureDevOpsBaseClient } from './ado-base-client.js';
 import { ApiResult, BuildInfo, PipelineInfo, BuildTimelineRecord } from '../types/index.js';
@@ -54,6 +55,10 @@ export interface BuildUpdateOptions {
 
 export class BuildClient extends AzureDevOpsBaseClient {
   private buildApi: IBuildApi | null = null;
+  
+  getConfig() {
+    return this.config;
+  }
 
   async initialize(): Promise<void> {
     this.buildApi = await this.connection.getBuildApi();
@@ -97,7 +102,8 @@ export class BuildClient extends AzureDevOpsBaseClient {
         filter?.repositoryType
       );
       
-      return (builds as any).values || (builds as any).value || []
+      const buildData = builds as { values?: Build[]; value?: Build[] };
+      return buildData.values || buildData.value || []
         .filter((b: Build): b is Required<Build> => 
           b.id !== undefined && 
           b.buildNumber !== undefined &&
@@ -267,7 +273,8 @@ export class BuildClient extends AzureDevOpsBaseClient {
         includeSourceChange
       );
       
-      return (changes as any).values || (changes as any).value || [];
+      const changeData = changes as { values?: Change[]; value?: Change[] };
+      return changeData.values || changeData.value || [];
     });
   }
 
@@ -300,7 +307,8 @@ export class BuildClient extends AzureDevOpsBaseClient {
         includeLatestBuilds
       );
       
-      return (definitions as any).values || (definitions as any).value || []
+      const defData = definitions as { values?: BuildDefinitionReference[]; value?: BuildDefinitionReference[] };
+      return defData.values || defData.value || []
         .filter((d: BuildDefinitionReference): d is Required<BuildDefinitionReference> => 
           d.id !== undefined && 
           d.name !== undefined &&
@@ -420,7 +428,7 @@ export class BuildClient extends AzureDevOpsBaseClient {
     };
   }
 
-  private getBuildStatusString(status: any): string {
+  private getBuildStatusString(status: BuildStatus | undefined): string {
     const statusMap: { [key: number]: string } = {
       [BuildStatus.None]: 'None',
       [BuildStatus.InProgress]: 'InProgress',
@@ -431,10 +439,10 @@ export class BuildClient extends AzureDevOpsBaseClient {
       [BuildStatus.All]: 'All'
     };
     
-    return statusMap[status] || 'Unknown';
+    return status !== undefined ? statusMap[status] || 'Unknown' : 'Unknown';
   }
 
-  private getBuildResultString(result: any): string {
+  private getBuildResultString(result: BuildResult | undefined): string {
     const resultMap: { [key: number]: string } = {
       [BuildResult.None]: 'None',
       [BuildResult.Succeeded]: 'Succeeded',
@@ -443,17 +451,17 @@ export class BuildClient extends AzureDevOpsBaseClient {
       [BuildResult.Canceled]: 'Canceled'
     };
     
-    return resultMap[result] || 'Unknown';
+    return result !== undefined ? resultMap[result] || 'Unknown' : 'Unknown';
   }
 
-  private getQueueStatusString(status: any): 'enabled' | 'paused' | 'disabled' {
+  private getQueueStatusString(status: DefinitionQueueStatus | undefined): 'enabled' | 'paused' | 'disabled' {
     const statusMap: { [key: number]: 'enabled' | 'paused' | 'disabled' } = {
       0: 'enabled',
       1: 'paused',
       2: 'disabled'
     };
     
-    return statusMap[status] || 'enabled';
+    return status !== undefined ? statusMap[status] || 'enabled' : 'enabled';
   }
 
   private mapPriority(priority: string): number {
