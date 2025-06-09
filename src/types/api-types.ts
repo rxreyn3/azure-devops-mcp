@@ -16,12 +16,6 @@ export interface AgentInfo {
   osDescription?: string;
 }
 
-// Agent status codes from Azure DevOps API
-export enum AgentStatus {
-  Offline = '1',
-  Online = '2',
-  Unavailable = '3'
-}
 
 export interface PermissionError {
   type: 'permission';

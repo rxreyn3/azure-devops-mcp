@@ -1,7 +1,7 @@
 import { ITaskAgentApi } from 'azure-devops-node-api/TaskAgentApi.js';
-import { TaskAgentQueue, TaskAgent } from 'azure-devops-node-api/interfaces/TaskAgentInterfaces.js';
+import { TaskAgentQueue, TaskAgent, TaskAgentStatus } from 'azure-devops-node-api/interfaces/TaskAgentInterfaces.js';
 import { AzureDevOpsBaseClient } from './ado-base-client.js';
-import { ApiResult, QueueInfo, AgentInfo, AgentStatus } from '../types/index.js';
+import { ApiResult, QueueInfo, AgentInfo } from '../types/index.js';
 import { createNotFoundError, createPermissionError } from '../utils/error-handlers.js';
 
 export class TaskAgentClient extends AzureDevOpsBaseClient {
@@ -155,11 +155,10 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
     };
   }
 
-  private getAgentStatusString(status: AgentStatus | undefined): string {
+  private getAgentStatusString(status: TaskAgentStatus | undefined): string {
     const statusMap: { [key: string]: string } = {
-      [AgentStatus.Offline]: 'Offline',
-      [AgentStatus.Online]: 'Online',
-      [AgentStatus.Unavailable]: 'Unavailable'
+      [TaskAgentStatus.Offline]: 'Offline',
+      [TaskAgentStatus.Online]: 'Online'
     };
     
     return status !== undefined ? statusMap[status] || 'Unknown' : 'Unknown';

@@ -52,7 +52,8 @@ export class AzureDevOpsMCPServer {
         throw new Error(`Unknown tool: ${name}`);
       }
 
-      return await handler(args);
+      const result = await handler(args || {});
+      return result as { content: Array<{ type: 'text'; text: string }> };
     });
   }
 

@@ -21,7 +21,7 @@ export abstract class AzureDevOpsBaseClient {
       const result = await apiCall();
       return { success: true, data: result };
     } catch (error) {
-      return handleAzureDevOpsError(error, operation);
+      return handleAzureDevOpsError(error, operation) as ApiResult<T>;
     }
   }
 

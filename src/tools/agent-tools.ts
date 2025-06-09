@@ -89,10 +89,11 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
           required: ['queueIdOrName'],
         },
       },
-      handler: async (args: { queueIdOrName: string }) => {
-        const id = parseInt(args.queueIdOrName, 10);
+      handler: async (args: unknown) => {
+        const typedArgs = args as { queueIdOrName: string };
+        const id = parseInt(typedArgs.queueIdOrName, 10);
         const result = await client.getQueueDetails(
-          isNaN(id) ? args.queueIdOrName : id,
+          isNaN(id) ? typedArgs.queueIdOrName : id,
         );
 
         if (!result.success) {
@@ -132,8 +133,9 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
           required: ['agentName'],
         },
       },
-      handler: async (args: { agentName: string }) => {
-        const result = await client.findAgent(args.agentName);
+      handler: async (args: unknown) => {
+        const typedArgs = args as { agentName: string };
+        const result = await client.findAgent(typedArgs.agentName);
 
         if (!result.success) {
           return {
@@ -172,8 +174,9 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
           required: ['queueId'],
         },
       },
-      handler: async (args: { queueId: number }) => {
-        const result = await client.listQueueAgents(args.queueId);
+      handler: async (args: unknown) => {
+        const typedArgs = args as { queueId: number };
+        const result = await client.listQueueAgents(typedArgs.queueId);
 
         if (!result.success) {
           return {

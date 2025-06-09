@@ -102,8 +102,7 @@ export class BuildClient extends AzureDevOpsBaseClient {
         filter?.repositoryType
       );
       
-      const buildData = builds as { values?: Build[]; value?: Build[] };
-      return buildData.values || buildData.value || []
+      return builds
         .filter((b: Build): b is Required<Build> => 
           b.id !== undefined && 
           b.buildNumber !== undefined &&
@@ -273,8 +272,7 @@ export class BuildClient extends AzureDevOpsBaseClient {
         includeSourceChange
       );
       
-      const changeData = changes as { values?: Change[]; value?: Change[] };
-      return changeData.values || changeData.value || [];
+      return changes;
     });
   }
 
@@ -307,8 +305,7 @@ export class BuildClient extends AzureDevOpsBaseClient {
         includeLatestBuilds
       );
       
-      const defData = definitions as { values?: BuildDefinitionReference[]; value?: BuildDefinitionReference[] };
-      return defData.values || defData.value || []
+      return definitions
         .filter((d: BuildDefinitionReference): d is Required<BuildDefinitionReference> => 
           d.id !== undefined && 
           d.name !== undefined &&

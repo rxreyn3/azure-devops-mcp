@@ -126,6 +126,7 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
           name: string;
           path: string;
           type: string;
+          queueStatus?: number;
           repository?: {
             name: string;
             type: string;
@@ -143,29 +144,29 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
         }
         
         const config: PipelineConfig = {
-          id: pipeline.id,
-          name: pipeline.name,
-          path: pipeline.path,
-          type: pipeline.type,
+          id: pipeline.id!,
+          name: pipeline.name!,
+          path: pipeline.path || '',
+          type: String(pipeline.type),
           queueStatus: pipeline.queueStatus,
         };
 
         // Include variables if requested
-        if (args.includeVariables !== false && pipeline.variables) {
+        if (typedArgs.includeVariables !== false && pipeline.variables) {
           config.variables = pipeline.variables;
         }
 
         // Include triggers if requested
-        if (args.includeTriggers !== false && pipeline.triggers) {
-          config.triggers = pipeline.triggers;
+        if (typedArgs.includeTriggers !== false && pipeline.triggers) {
+          config.triggers = pipeline.triggers as any;
         }
 
         // Include repository info
         if (pipeline.repository) {
           config.repository = {
-            id: pipeline.repository.id,
-            type: pipeline.repository.type,
-            name: pipeline.repository.name,
+            name: pipeline.repository.name || '',
+            type: pipeline.repository.type || '',
+            url: pipeline.repository.url || '',
             defaultBranch: pipeline.repository.defaultBranch,
           };
         }
@@ -173,7 +174,7 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
         // Include process info
         if (pipeline.process) {
           config.process = {
-            type: pipeline.process.type,
+            type: (pipeline.process as any).type,
           };
         }
 
@@ -287,6 +288,7 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
               succeeded: 0,
               failed: 0,
               canceled: 0,
+              failureReasons: [],
             };
           }
           byDefinition[defName].total++;
@@ -298,7 +300,7 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
         // Get currently running builds
         const runningResult = await client.getBuilds({
           statusFilter: BuildStatus.InProgress,
-          definitions: args.definitionId ? [args.definitionId] : undefined,
+          definitions: typedArgs.definitionId ? [typedArgs.definitionId] : undefined,
           top: 20,
         });
 
