@@ -253,13 +253,13 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
 
         // Calculate metrics
         const totalBuilds = builds.length;
-        const succeeded = builds.filter(b => b.result === 'succeeded').length;
-        const failed = builds.filter(b => b.result === 'failed').length;
-        const canceled = builds.filter(b => b.result === 'canceled').length;
+        const succeeded = builds.filter(b => b.result === 'Succeeded').length;
+        const failed = builds.filter(b => b.result === 'Failed').length;
+        const canceled = builds.filter(b => b.result === 'Canceled').length;
 
         // Calculate average duration for successful builds
         const successfulBuilds = builds.filter(b => 
-          b.result === 'succeeded' && b.startTime && b.finishTime
+          b.result === 'Succeeded' && b.startTime && b.finishTime
         );
         
         let avgDuration = 0;
@@ -292,9 +292,9 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
             };
           }
           byDefinition[defName].total++;
-          if (b.result === 'succeeded') byDefinition[defName].succeeded++;
-          if (b.result === 'failed') byDefinition[defName].failed++;
-          if (b.result === 'canceled') byDefinition[defName].canceled++;
+          if (b.result === 'Succeeded') byDefinition[defName].succeeded++;
+          if (b.result === 'Failed') byDefinition[defName].failed++;
+          if (b.result === 'Canceled') byDefinition[defName].canceled++;
         });
 
         // Get currently running builds
