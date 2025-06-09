@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated documentation with tool selection philosophy
 
 ### Fixed
+- Build status enum case mismatch causing `monitor_build_health` to report 0 for all build counts
 - TypeScript compilation errors related to API response types
 - ESLint warnings for explicit `any` types (replaced with proper types)
 - Improved type definitions for Azure DevOps API responses
