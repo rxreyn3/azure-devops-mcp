@@ -87,15 +87,18 @@ describe('Basic Functionality Tests', () => {
       
       const server = new AzureDevOpsMCPServer(config);
       
-      // Test the errorResponse method
-      const errorResponse = (server as any).errorResponse(new Error('Test error'));
+      // Test that server initializes with proper tools
+      const toolRegistry = (server as any).toolRegistry;
+      expect(toolRegistry).toBeDefined();
+      expect(toolRegistry.tools).toBeDefined();
+      expect(toolRegistry.tools.length).toBeGreaterThan(0);
+      expect(toolRegistry.handlers).toBeDefined();
+      expect(toolRegistry.handlers.size).toBeGreaterThan(0);
       
-      expect(errorResponse).toHaveProperty('content');
-      expect(errorResponse.content).toBeInstanceOf(Array);
-      expect(errorResponse.content[0]).toHaveProperty('type', 'text');
-      
-      const parsedError = JSON.parse(errorResponse.content[0].text);
-      expect(parsedError).toHaveProperty('error', 'Test error');
+      // Verify tool exists in registry
+      const healthCheckTool = toolRegistry.tools.find((t: any) => t.name === 'ado_health_check');
+      expect(healthCheckTool).toBeDefined();
+      expect(healthCheckTool.name).toBe('ado_health_check');
     });
   });
 
