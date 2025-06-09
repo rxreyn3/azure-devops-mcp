@@ -117,6 +117,157 @@ node dist/index.js
    git commit -m "feat: add new feature"
    ```
 
+## Changelog Management
+
+### Overview
+
+We use [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format with automated processing during releases. **All changes must be documented in `CHANGELOG.md`** as part of your feature branch.
+
+### CHANGELOG.md Structure
+
+The changelog uses the following structure:
+
+```markdown
+## [Unreleased]
+
+### Added
+- New features go here
+
+### Changed  
+- Modified functionality goes here
+
+### Fixed
+- Bug fixes go here
+
+### Security
+- Security improvements go here
+
+## [1.0.0] - 2025-01-06
+# Previous versions...
+```
+
+### Required Process
+
+**⚠️ Important**: You **must** update `CHANGELOG.md` in your feature branch, not after merging!
+
+#### Step 1: Update CHANGELOG.md in Your Branch
+When making changes, add entries under the appropriate `[Unreleased]` section:
+
+```markdown
+## [Unreleased]
+
+### Added
+- New `get_work_items` tool for querying Azure DevOps work items
+- Enhanced error messages with troubleshooting context
+
+### Changed
+- Improved connection timeout handling in health checks
+
+### Fixed
+- Fixed race condition in agent status updates
+
+### Security
+- Added input validation for work item IDs
+```
+
+#### Step 2: Follow These Guidelines
+
+**For Added Section:**
+- New tools, features, or capabilities
+- New configuration options
+- New documentation sections
+
+**For Changed Section:**
+- Modified existing functionality
+- Updated dependencies
+- Changed default behaviors
+- API improvements
+
+**For Fixed Section:**
+- Bug fixes
+- Error handling improvements
+- Performance fixes
+
+**For Security Section:**
+- Security patches
+- Vulnerability fixes
+- Enhanced validation
+- Permission improvements
+
+#### Step 3: Commit Everything Together
+```bash
+git add CHANGELOG.md src/your-changes.ts
+git commit -m "feat: add work item management tools
+
+- Add get_work_items and list_work_items tools
+- Improve error handling for API timeouts
+- Update changelog with new features"
+```
+
+### What Happens During Release
+
+The automated release workflow will:
+
+1. **Extract** all content from `[Unreleased]` sections
+2. **Create** a new version section (e.g., `[1.1.0] - 2025-01-09`)
+3. **Move** all unreleased changes to the new version
+4. **Reset** `[Unreleased]` sections to empty templates
+5. **Generate** release notes from the changelog content
+
+### Example: Before and After Release
+
+**Before Release (in your PR):**
+```markdown
+## [Unreleased]
+
+### Added
+- New work item management tools
+- Enhanced error handling
+
+### Fixed
+- Connection timeout issues
+
+## [1.0.0] - 2025-01-06
+# Previous release content...
+```
+
+**After Release (automatic):**
+```markdown
+## [Unreleased]
+
+### Added
+
+### Changed
+
+### Fixed
+
+### Security
+
+## [1.1.0] - 2025-01-09
+
+### Added
+- New work item management tools
+- Enhanced error handling
+
+### Fixed
+- Connection timeout issues
+
+## [1.0.0] - 2025-01-06
+# Previous release content...
+```
+
+### Common Mistakes to Avoid
+
+❌ **Don't** update changelog after merging to main  
+❌ **Don't** leave `[Unreleased]` sections empty when making changes  
+❌ **Don't** add version numbers or dates (automation handles this)  
+❌ **Don't** edit previous version sections  
+
+✅ **Do** update changelog in your feature branch  
+✅ **Do** be descriptive about what changed  
+✅ **Do** categorize changes appropriately  
+✅ **Do** include user-facing impact descriptions  
+
 ## Commit Message Guidelines
 
 We follow conventional commits:
