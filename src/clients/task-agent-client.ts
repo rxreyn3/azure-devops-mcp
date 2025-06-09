@@ -1,7 +1,7 @@
 import { ITaskAgentApi } from 'azure-devops-node-api/TaskAgentApi.js';
-import { TaskAgentQueue, TaskAgent, TaskAgentStatus } from 'azure-devops-node-api/interfaces/TaskAgentInterfaces.js';
+import { TaskAgentQueue, TaskAgent, TaskAgentStatus, TaskAgentQueueActionFilter } from 'azure-devops-node-api/interfaces/TaskAgentInterfaces.js';
 import { AzureDevOpsBaseClient } from './ado-base-client.js';
-import { ApiResult, QueueInfo, AgentInfo } from '../types/index.js';
+import { ApiResult, QueueInfo, AgentInfo, ProjectAgentInfo, ListAgentsOptions } from '../types/index.js';
 import { createNotFoundError, createPermissionError } from '../utils/error-handlers.js';
 import { safeStringCompare } from '../utils/validators.js';
 
@@ -163,5 +163,75 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
     };
     
     return status !== undefined ? statusMap[status] || 'Unknown' : 'Unknown';
+  }
+
+  async listProjectAgents(options: ListAgentsOptions = {}): Promise<ApiResult<ProjectAgentInfo[]>> {
+    const api = await this.ensureTaskAgentApi();
+    
+    return this.handleApiCall('list project agents', async () => {
+      // Step 1: Get project queues with optional name filter
+      const queues = await api.getAgentQueues(
+        this.config.project,
+        options.poolNameFilter, // User thinks of this as "pool name"
+        TaskAgentQueueActionFilter.Use
+      );
+      
+      if (!queues || queues.length === 0) {
+        return [];
+      }
+
+      // Step 2: Collect agents from each queue's pool
+      const agentMap = new Map<number, ProjectAgentInfo>();
+      const inaccessiblePools: string[] = [];
+      
+      for (const queue of queues) {
+        if (!queue.id || !queue.name || !queue.pool?.id) continue;
+        
+        try {
+          const agents = await api.getAgents(queue.pool.id);
+          
+          for (const agent of agents) {
+            if (!agent.id || !agent.name) continue;
+            
+            // Apply name filter if specified
+            if (options.nameFilter) {
+              const nameMatch = agent.name.toLowerCase().includes(options.nameFilter.toLowerCase());
+              if (!nameMatch) continue;
+            }
+            
+            // Apply online filter if specified
+            if (options.onlyOnline && agent.status !== TaskAgentStatus.Online) {
+              continue;
+            }
+            
+            // Use agent ID as key to avoid duplicates
+            if (!agentMap.has(agent.id)) {
+              agentMap.set(agent.id, {
+                ...this.mapAgentInfo(agent),
+                poolName: queue.pool.name || 'Unknown',
+                queueId: queue.id,
+                queueName: queue.name
+              });
+            }
+          }
+        } catch (error) {
+          // Track pools we couldn't access but continue
+          inaccessiblePools.push(queue.name);
+          console.warn(`Cannot access agents for queue '${queue.name}': ${error}`);
+        }
+      }
+      
+      const agents = Array.from(agentMap.values());
+      
+      // Sort by agent name for consistent output
+      agents.sort((a, b) => a.name.localeCompare(b.name));
+      
+      // Log warning if some pools were inaccessible
+      if (inaccessiblePools.length > 0) {
+        console.warn(`Limited results: Could not access agents in ${inaccessiblePools.length} pool(s): ${inaccessiblePools.join(', ')}`);
+      }
+      
+      return agents;
+    });
   }
 }
