@@ -30,7 +30,6 @@ jobs:
       with:
         node-version: '20'
         registry-url: 'https://registry.npmjs.org'
-        cache: 'npm'
     
     - uses: oven-sh/setup-bun@a1800f471a0bc25cddac36bb13e6f436ddf341d7 # v2.0.1
       with:
