@@ -117,156 +117,120 @@ node dist/index.js
    git commit -m "feat: add new feature"
    ```
 
-## Changelog Management
+## Making Changes and Releases
 
-### Overview
+### Using Changesets
 
-We use [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format with automated processing during releases. **All changes must be documented in `CHANGELOG.md`** as part of your feature branch.
+We use [Changesets](https://github.com/changesets/changesets) to manage versions and changelogs. This ensures a consistent release process and automatically generates changelogs from your contributions.
 
-### CHANGELOG.md Structure
+### When to Create a Changeset
 
-The changelog uses the following structure:
+Create a changeset when you:
+- ✅ Add new features or tools
+- ✅ Fix bugs
+- ✅ Make breaking changes
+- ✅ Update dependencies that affect users
+- ✅ Improve performance
+- ✅ Enhance documentation (if user-facing)
 
+Don't create a changeset for:
+- ❌ Internal refactoring with no user impact
+- ❌ Development tooling updates
+- ❌ Test additions (unless fixing a bug)
+- ❌ Typo fixes in comments
+
+### How to Create a Changeset
+
+1. After making your changes, run:
+   ```bash
+   npx changeset
+   # or
+   bun run changeset
+   ```
+
+2. Follow the interactive prompts:
+   - **Select packages**: Choose `@rxreyn3/azure-devops-mcp`
+   - **Select version type**:
+     - `patch`: Bug fixes, minor improvements
+     - `minor`: New features, non-breaking changes
+     - `major`: Breaking changes
+   - **Write a summary**: Describe what changed and why
+
+3. This creates a file in `.changeset/` with a random name like `brave-pandas-dance.md`:
+   ```markdown
+   ---
+   "@rxreyn3/azure-devops-mcp": patch
+   ---
+
+   Fixed connection timeout issues in Azure DevOps API calls
+   ```
+
+4. Commit the changeset file with your code:
+   ```bash
+   git add .
+   git commit -m "fix: resolve connection timeout issues"
+   ```
+
+### Examples of Good Changeset Messages
+
+**For a new feature (minor):**
 ```markdown
-## [Unreleased]
-
-### Added
-- New features go here
-
-### Changed  
-- Modified functionality goes here
-
-### Fixed
-- Bug fixes go here
-
-### Security
-- Security improvements go here
-
-## [1.0.0] - 2025-01-06
-# Previous versions...
+Added new `list_work_items` and `get_work_item_details` tools for Azure DevOps work item management. These tools support filtering by project, state, and assigned user.
 ```
 
-### Required Process
-
-**⚠️ Important**: You **must** update `CHANGELOG.md` in your feature branch, not after merging!
-
-#### Step 1: Update CHANGELOG.md in Your Branch
-When making changes, add entries under the appropriate `[Unreleased]` section:
-
+**For a bug fix (patch):**
 ```markdown
-## [Unreleased]
-
-### Added
-- New `get_work_items` tool for querying Azure DevOps work items
-- Enhanced error messages with troubleshooting context
-
-### Changed
-- Improved connection timeout handling in health checks
-
-### Fixed
-- Fixed race condition in agent status updates
-
-### Security
-- Added input validation for work item IDs
+Fixed agent status enum case mismatch that caused the `monitor_build_health` tool to report 0 for all build counts. Build statistics now correctly show succeeded, failed, and canceled counts.
 ```
 
-#### Step 2: Follow These Guidelines
+**For a breaking change (major):**
+```markdown
+REAKING: Renamed `list_agents` tool to `list_queue_agents` for clarity. The tool now requires a `queueId` parameter instead of `poolId`. Users will need to update their tool calls to use the new name and parameter.
+```
 
-**For Added Section:**
-- New tools, features, or capabilities
-- New configuration options
-- New documentation sections
+### The Automated Release Process
 
-**For Changed Section:**
-- Modified existing functionality
-- Updated dependencies
-- Changed default behaviors
-- API improvements
+After you merge your PR:
 
-**For Fixed Section:**
-- Bug fixes
-- Error handling improvements
-- Performance fixes
+1. **Changesets Action runs** on every push to `main`
+2. **If changesets exist**, it creates/updates a "Version Packages" PR that:
+   - Bumps the version in `package.json`
+   - Updates `CHANGELOG.md` with all changesets
+   - Deletes the changeset files
+3. **When the Version PR is merged**:
+   - Publishes to npm
+   - Creates a GitHub release
+   - Tags the commit
 
-**For Security Section:**
-- Security patches
-- Vulnerability fixes
-- Enhanced validation
-- Permission improvements
+### Example Workflow
 
-#### Step 3: Commit Everything Together
 ```bash
-git add CHANGELOG.md src/your-changes.ts
-git commit -m "feat: add work item management tools
+# 1. Create your feature branch
+git checkout -b fix/connection-timeouts
 
-- Add get_work_items and list_work_items tools
-- Improve error handling for API timeouts
-- Update changelog with new features"
+# 2. Make your changes
+# ... edit files ...
+
+# 3. Create a changeset
+npx changeset
+# Select: @rxreyn3/azure-devops-mcp
+# Select: patch
+# Message: Fixed connection timeout issues in Azure DevOps API calls
+
+# 4. Commit everything
+git add .
+git commit -m "fix: resolve connection timeout issues"
+
+# 5. Push and create PR
+git push origin fix/connection-timeouts
 ```
 
-### What Happens During Release
+### Tips
 
-The automated release workflow will:
-
-1. **Extract** all content from `[Unreleased]` sections
-2. **Create** a new version section (e.g., `[1.1.0] - 2025-01-09`)
-3. **Move** all unreleased changes to the new version
-4. **Reset** `[Unreleased]` sections to empty templates
-5. **Generate** release notes from the changelog content
-
-### Example: Before and After Release
-
-**Before Release (in your PR):**
-```markdown
-## [Unreleased]
-
-### Added
-- New work item management tools
-- Enhanced error handling
-
-### Fixed
-- Connection timeout issues
-
-## [1.0.0] - 2025-01-06
-# Previous release content...
-```
-
-**After Release (automatic):**
-```markdown
-## [Unreleased]
-
-### Added
-
-### Changed
-
-### Fixed
-
-### Security
-
-## [1.1.0] - 2025-01-09
-
-### Added
-- New work item management tools
-- Enhanced error handling
-
-### Fixed
-- Connection timeout issues
-
-## [1.0.0] - 2025-01-06
-# Previous release content...
-```
-
-### Common Mistakes to Avoid
-
-❌ **Don't** update changelog after merging to main  
-❌ **Don't** leave `[Unreleased]` sections empty when making changes  
-❌ **Don't** add version numbers or dates (automation handles this)  
-❌ **Don't** edit previous version sections  
-
-✅ **Do** update changelog in your feature branch  
-✅ **Do** be descriptive about what changed  
-✅ **Do** categorize changes appropriately  
-✅ **Do** include user-facing impact descriptions  
+- **Multiple changesets**: You can have multiple changesets in one PR if you're making several distinct changes
+- **Editing changesets**: The `.md` files in `.changeset/` can be edited before committing
+- **No manual versioning**: Never manually edit the version in `package.json`
+- **Batched releases**: Multiple PRs can be released together in one version  
 
 ## Commit Message Guidelines
 

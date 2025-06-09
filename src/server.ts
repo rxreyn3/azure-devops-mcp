@@ -8,6 +8,7 @@ import { Config } from './config.js';
 import { TaskAgentClient } from './clients/task-agent-client.js';
 import { BuildClient } from './clients/build-client.js';
 import { createToolRegistry } from './tools/index.js';
+import packageJson from '../package.json' with { type: 'json' };
 
 export class AzureDevOpsMCPServer {
   private server: Server;
@@ -25,7 +26,7 @@ export class AzureDevOpsMCPServer {
     this.server = new Server(
       {
         name: '@rxreyn3/azure-devops-mcp',
-        version: '1.0.1',
+        version: packageJson.version,
       },
       {
         capabilities: {
