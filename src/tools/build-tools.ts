@@ -1,6 +1,7 @@
 import { ToolDefinition } from '../types/tool-types.js';
 import { BuildClient, BuildFilter, QueueBuildOptions, BuildUpdateOptions } from '../clients/build-client.js';
 import { BuildStatus, BuildResult, BuildReason } from 'azure-devops-node-api/interfaces/BuildInterfaces.js';
+import { formatErrorResponse } from '../utils/formatters.js';
 
 export function createBuildTools(client: BuildClient): Record<string, ToolDefinition> {
   return {
@@ -106,14 +107,7 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
         const result = await client.getBuilds(filter);
 
         if (!result.success) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(result.error, null, 2),
-              },
-            ],
-          };
+          return formatErrorResponse(result.error);
         }
 
         // Format the response with summary
@@ -389,14 +383,7 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
         const result = await client.queueBuild(options);
 
         if (!result.success) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(result.error, null, 2),
-              },
-            ],
-          };
+          return formatErrorResponse(result.error);
         }
 
         return {
@@ -572,34 +559,16 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
             updateOptions.keepForever = false;
             break;
           default:
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: JSON.stringify(
-                    {
-                      error: `Invalid action: ${typedArgs.action}`,
-                      validActions: ['cancel', 'retain', 'unretain'],
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-            };
+            return formatErrorResponse({
+              type: 'api_error',
+              message: `Invalid action: ${typedArgs.action}. Valid actions are: cancel, retain, unretain`,
+            });
         }
 
         const result = await client.updateBuild(typedArgs.buildId, updateOptions);
 
         if (!result.success) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(result.error, null, 2),
-              },
-            ],
-          };
+          return formatErrorResponse(result.error);
         }
 
         return {

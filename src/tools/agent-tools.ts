@@ -1,5 +1,6 @@
 import { ToolDefinition } from '../types/tool-types.js';
 import { TaskAgentClient } from '../clients/task-agent-client.js';
+import { formatErrorResponse } from '../utils/formatters.js';
 
 export function createAgentTools(client: TaskAgentClient): Record<string, ToolDefinition> {
   return {
@@ -46,14 +47,7 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
         const result = await client.listProjectQueues();
 
         if (!result.success) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(result.error, null, 2),
-              },
-            ],
-          };
+          return formatErrorResponse(result.error);
         }
 
         return {
@@ -97,14 +91,7 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
         );
 
         if (!result.success) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(result.error, null, 2),
-              },
-            ],
-          };
+          return formatErrorResponse(result.error);
         }
 
         return {
@@ -138,14 +125,7 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
         const result = await client.findAgent(typedArgs.agentName);
 
         if (!result.success) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(result.error, null, 2),
-              },
-            ],
-          };
+          return formatErrorResponse(result.error);
         }
 
         return {
@@ -179,14 +159,7 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
         const result = await client.listQueueAgents(typedArgs.queueId);
 
         if (!result.success) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(result.error, null, 2),
-              },
-            ],
-          };
+          return formatErrorResponse(result.error);
         }
 
         return {

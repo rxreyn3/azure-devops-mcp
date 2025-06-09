@@ -3,6 +3,7 @@ import { TaskAgentQueue, TaskAgent, TaskAgentStatus } from 'azure-devops-node-ap
 import { AzureDevOpsBaseClient } from './ado-base-client.js';
 import { ApiResult, QueueInfo, AgentInfo } from '../types/index.js';
 import { createNotFoundError, createPermissionError } from '../utils/error-handlers.js';
+import { safeStringCompare } from '../utils/validators.js';
 
 export class TaskAgentClient extends AzureDevOpsBaseClient {
   private taskAgentApi: ITaskAgentApi | null = null;
@@ -48,7 +49,7 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
         if (typeof queueIdOrName === 'number') {
           return q.id === queueIdOrName;
         }
-        return q.name?.toLowerCase() === queueIdOrName.toLowerCase();
+        return safeStringCompare(q.name, queueIdOrName, false);
       });
       
       if (!queue || !queue.id || !queue.name || !queue.pool) {

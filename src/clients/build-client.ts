@@ -16,6 +16,7 @@ import {
 import { AzureDevOpsBaseClient } from './ado-base-client.js';
 import { ApiResult, BuildInfo, PipelineInfo, BuildTimelineRecord } from '../types/index.js';
 import { createNotFoundError } from '../utils/error-handlers.js';
+import { hasRequiredProperties } from '../utils/validators.js';
 
 export interface BuildFilter {
   definitions?: number[];
@@ -186,11 +187,11 @@ export class BuildClient extends AzureDevOpsBaseClient {
       }
       
       return timeline.records
-        .filter((r): r is Required<typeof r> => 
-          r.id !== undefined && 
-          r.type !== undefined && 
-          r.name !== undefined &&
-          r.state !== undefined
+        .filter((r) => 
+          hasRequiredProperties<{ id: string; type: string; name: string; state: unknown }>(
+            r, 
+            ['id', 'type', 'name', 'state']
+          )
         )
         .map(r => ({
           id: r.id,
@@ -306,12 +307,13 @@ export class BuildClient extends AzureDevOpsBaseClient {
       );
       
       return definitions
-        .filter((d: BuildDefinitionReference): d is Required<BuildDefinitionReference> => 
-          d.id !== undefined && 
-          d.name !== undefined &&
-          d.path !== undefined
+        .filter((d) => 
+          hasRequiredProperties<{ id: number; name: string; path: string }>(
+            d,
+            ['id', 'name', 'path']
+          )
         )
-        .map((d: Required<BuildDefinitionReference>) => this.mapPipelineInfo(d));
+        .map((d) => this.mapPipelineInfo(d as BuildDefinitionReference));
     });
   }
 
