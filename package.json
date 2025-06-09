@@ -26,6 +26,9 @@
     "format": "bunx prettier --write \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "changeset publish",
     "prerelease": "bun run lint && bun run typecheck && bun run test && bun run build",
     "verify:node": "bun run build && node scripts/test-node-compat.js",
     "prepublishOnly": "bun run clean && bun run build"
@@ -60,6 +63,7 @@
     "dotenv": "^16.5.0"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.29.4",
     "@eslint/js": "^9.28.0",
     "@types/bun": "^1.2.15",
     "@types/nock": "^11.1.0",
