@@ -1,0 +1,25 @@
+# CODEOWNERS file for Azure DevOps MCP Server
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global owner - all files require review from you
+* @rxreyn3
+
+# Workflow files require extra scrutiny  
+/.github/workflows/ @rxreyn3
+/.github/CODEOWNERS @rxreyn3
+
+# Critical configuration files
+/package.json @rxreyn3
+/tsconfig.json @rxreyn3
+/bun.lockb @rxreyn3
+
+# Source code
+/src/ @rxreyn3
+
+# Documentation changes
+/README.md @rxreyn3
+/CHANGELOG.md @rxreyn3
+/docs/ @rxreyn3
+
+# Test files
+/tests/ @rxreyn3
