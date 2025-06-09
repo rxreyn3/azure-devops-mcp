@@ -31,12 +31,13 @@ This directory contains the streamlined CI/CD workflows for the Azure DevOps MCP
 ### Development Workflow
 1. Create feature branch: `git checkout -b feature/your-feature`
 2. Make changes and commit
-3. Push and create Pull Request
-4. CI runs automatically on PR
-5. Merge when ready
+3. **Update `CHANGELOG.md`** - Add your changes to the `[Unreleased]` section
+4. Push and create Pull Request
+5. CI runs automatically on PR
+6. Merge when ready (changelog is already updated!)
 
 ### Release Workflow
-1. Update `CHANGELOG.md` with changes in `[Unreleased]` section
+1. Ensure `CHANGELOG.md` has all changes in `[Unreleased]` section (should be done via PRs)
 2. Go to GitHub Actions → "Release" workflow
 3. Click "Run workflow"
 4. Select version type (patch/minor/major)

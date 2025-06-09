@@ -16,22 +16,23 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
-      packages: write
       
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
       with:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
     
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v4.0.0
       with:
         node-version: '20'
         registry-url: 'https://registry.npmjs.org'
+        cache: 'npm'
     
-    - uses: oven-sh/setup-bun@v2
+    - uses: oven-sh/setup-bun@a1800f471a0bc25cddac36bb13e6f436ddf341d7 # v2.0.1
       with:
         bun-version: latest
     
@@ -45,20 +46,78 @@ jobs:
     
     - name: Run tests
       run: bun test
+      timeout-minutes: 5
     
     - name: Bump version
       id: version
       run: |
+        set -e
         npm version ${{ github.event.inputs.version }} -m "chore: release %s"
         echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
         echo "tag=v$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
     
     - name: Update server version
       run: |
+        set -e
         VERSION=${{ steps.version.outputs.version }}
-        sed -i "s/version: '.*'/version: '$VERSION'/" src/server.ts
-        git add src/server.ts
-        git commit --amend --no-edit
+        if [ -f "src/server.ts" ]; then
+          sed -i "s/version: '.*'/version: '$VERSION'/" src/server.ts
+          git add src/server.ts
+        else
+          echo "⚠️ Warning: src/server.ts not found, skipping version update"
+        fi
+    
+    - name: Update CHANGELOG.md
+      run: |
+        set -e
+        VERSION=${{ steps.version.outputs.version }}
+        DATE=$(date +%Y-%m-%d)
+        
+        # Backup original changelog
+        cp CHANGELOG.md CHANGELOG.md.bak
+        
+        # Check if there's actual content in [Unreleased]
+        if ! grep -A 20 "## \[Unreleased\]" CHANGELOG.md | grep -E "^- |^### " | grep -v "^### Added$" | grep -v "^### Changed$" | grep -v "^### Fixed$" | grep -v "^### Security$" | head -1 > /dev/null; then
+          echo "⚠️ No changes found in [Unreleased] section, skipping CHANGELOG update"
+          exit 0
+        fi
+        
+        # Create new changelog with version
+        {
+          head -n 7 CHANGELOG.md
+          echo ""
+          echo "## [Unreleased]"
+          echo ""
+          echo "### Added"
+          echo ""
+          echo "### Changed" 
+          echo ""
+          echo "### Fixed"
+          echo ""
+          echo "### Security"
+          echo ""
+          echo "## [$VERSION] - $DATE"
+          echo ""
+          grep -A 100 "## \[Unreleased\]" CHANGELOG.md.bak | tail -n +2 | grep -B 100 "## \[" | head -n -2
+          echo ""
+          grep -A 1000 "## \[" CHANGELOG.md.bak | grep -A 1000 "^## \[[0-9]"
+        } > CHANGELOG.md.new
+        
+        mv CHANGELOG.md.new CHANGELOG.md
+        rm CHANGELOG.md.bak
+        git add CHANGELOG.md
+    
+    - name: Commit all changes
+      run: |
+        set -e
+        if ! git diff --cached --quiet; then
+          git commit -m "chore: release ${{ steps.version.outputs.version }}
+
+          - Update version in package.json and source files
+          - Update CHANGELOG.md with release notes"
+        else
+          echo "No changes to commit"
+        fi
     
     - name: Push changes
       run: |
