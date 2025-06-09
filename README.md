@@ -191,6 +191,13 @@ node dist/index.js
 bun run start
 ```
 
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on:
+- How to set up your development environment
+- Our changeset-based release process
+- Code style and testing requirements
+
 ## License
 
 MIT
