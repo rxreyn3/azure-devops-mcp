@@ -8,23 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- New `get_work_item` tool to retrieve Azure DevOps work items by ID
-- New `list_work_items` tool to query work items with filters
-- Support for work item attachments and comments
-- Enhanced error messages with more context and troubleshooting tips
 
 ### Changed
-- Improved health check tool to validate more connection aspects
-- Updated queue listing to include more detailed agent status information
-- Streamlined GitHub workflows (removed redundant publish.yml and release-tag.yml)
 
 ### Fixed
-- Fixed connection timeout issues in health check when Azure DevOps is slow
-- Corrected agent count display in queue details
-- Fixed TypeScript type definitions for queue responses
 
 ### Security
-- Added input validation for work item IDs to prevent injection attacks
 
 ## [1.0.0] - 2025-01-06
 
