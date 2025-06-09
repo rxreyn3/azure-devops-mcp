@@ -20,10 +20,10 @@ export function formatDuration(startTime?: Date, endTime?: Date): string {
 export function formatBuildStatus(status: string, result?: string): string {
   if (status === 'completed' && result) {
     const emoji = {
-      succeeded: '✅',
-      failed: '❌',
-      canceled: '⚠️',
-      partiallySucceeded: '⚠️'
+      Succeeded: '✅',
+      Failed: '❌',
+      Canceled: '⚠️',
+      PartiallySucceeded: '⚠️'
     }[result] || '❓';
     
     return `${emoji} ${result}`;
@@ -78,11 +78,11 @@ export function formatTimelineRecord(record: BuildTimelineRecord, indent: number
   const prefix = '  '.repeat(indent);
   const status = record.result || record.state;
   const statusEmoji = {
-    succeeded: '✅',
-    failed: '❌',
-    skipped: '⏭️',
-    canceled: '⚠️',
-    inProgress: '🔄'
+    Succeeded: '✅',
+    Failed: '❌',
+    Skipped: '⏭️',
+    Canceled: '⚠️',
+    InProgress: '🔄'
   }[status] || '❓';
   
   const duration = formatDuration(record.startTime, record.finishTime);

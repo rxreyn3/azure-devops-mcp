@@ -9,10 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 8 new build-related MCP tools for comprehensive build management:
+  - `list_builds` - List builds with smart filtering (by status, result, branch, user, time range)
+  - `get_build_details` - Get comprehensive build information including timeline and changes
+  - `queue_build` - Queue new builds with parameters and priority settings
+  - `get_build_logs` - Retrieve build logs for troubleshooting
+  - `manage_build` - Cancel, retain, or unretain builds
+  - `list_pipelines` - List available build pipelines/definitions
+  - `get_pipeline_config` - View pipeline configuration including triggers and variables
+  - `monitor_build_health` - Get build health metrics and overview
+- Modular architecture with domain-specific clients:
+  - `BuildClient` for build operations
+  - `TaskAgentClient` for agent/queue operations
+  - Centralized type definitions in `src/types/`
+  - Shared utilities in `src/utils/`
+- Comprehensive API priorities documentation
+- Tool registry pattern for clean separation of concerns
 
 ### Changed
+- Refactored monolithic `server.ts` into modular architecture
+- Split `ado-client.ts` into specialized `BuildClient` and `TaskAgentClient`
+- Improved error handling with specific error types
+- Enhanced type safety throughout the codebase
+- Updated documentation with tool selection philosophy
 
 ### Fixed
+- Build status enum case mismatch causing `monitor_build_health` to report 0 for all build counts
+- TypeScript compilation errors related to API response types
+- ESLint warnings for explicit `any` types (replaced with proper types)
+- Improved type definitions for Azure DevOps API responses
 
 ### Security
 
