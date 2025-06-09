@@ -41,21 +41,40 @@ Create an MCP (Model Context Protocol) server that wraps Azure DevOps APIs for a
 - [x] Documentation (README, CONTRIBUTING)
 - [x] Security (.gitignore for sensitive files)
 
+### ✅ Completed (Phase 3)
+
+#### Build Tools Implementation
+- [x] Modular project structure with separate client and tool modules
+- [x] Build operations tools:
+  - [x] `list_builds` - Smart filtering for build queries
+  - [x] `get_build_details` - Comprehensive build information
+  - [x] `queue_build` - Start builds with parameters
+  - [x] `get_build_logs` - View build logs
+  - [x] `manage_build` - Cancel/retain builds
+- [x] Pipeline management tools:
+  - [x] `list_pipelines` - Discover available pipelines
+  - [x] `get_pipeline_config` - View pipeline configuration
+  - [x] `monitor_build_health` - Build health metrics
+- [x] Updated documentation with tool selection philosophy
+- [x] Comprehensive error handling and formatting utilities
+
 ### 🚧 Next Steps
 
-#### Phase 3: Testing & Production Readiness
+#### Phase 4: Testing & Production Readiness
 
 **Unit & Integration Tests**
 - [x] Comprehensive test suite for Azure DevOps client
 - [x] Mock Azure DevOps API responses
 - [x] Test permission fallback scenarios
 - [x] Test error handling edge cases
+- [ ] Add tests for new build tools
 - [ ] Integration tests with real Azure DevOps (optional)
 
 **Documentation Enhancement**
-- [ ] API documentation for all tools
+- [x] API priorities documentation
+- [x] Tool selection philosophy in README
 - [ ] Troubleshooting guide
-- [ ] Example use cases
+- [ ] Example use cases for build scenarios
 - [ ] Video demo/tutorial
 
 **Production Preparation**
@@ -65,23 +84,23 @@ Create an MCP (Model Context Protocol) server that wraps Azure DevOps APIs for a
 - [ ] Performance optimization
 - [ ] Security audit
 
-#### Phase 4: Enhanced Features
+#### Phase 5: Advanced Features
 
-**Additional Tools**
-- [ ] `get_all_queue_status` - Batch status check
-- [ ] `get_agent_capabilities` - Detailed agent info
-- [ ] `search_agents` - Find agents by capability
+**Additional Build Tools** (if tool count permits)
+- [ ] `list_artifacts` - Download build outputs
+- [ ] `get_build_metrics` - Historical build performance
+- [ ] `manage_build_tags` - Organize builds with tags
 
 **Resources** (URI-based data access)
-- [ ] `ado://queues` - List all queues
-- [ ] `ado://queue/{id}` - Queue details
-- [ ] `ado://agents/{queueId}` - Queue agents
+- [ ] `ado://builds/recent` - Recent builds
+- [ ] `ado://pipeline/{id}` - Pipeline details
+- [ ] `ado://build/{id}/logs` - Build logs
 
 **Advanced Features**
 - [ ] Caching layer for frequently accessed data
-- [ ] Rate limit handling
-- [ ] Multi-project support (optional)
-- [ ] Webhook support for real-time updates
+- [ ] Rate limit handling with exponential backoff
+- [ ] Build status webhooks
+- [ ] Batch operations for multiple builds
 
 #### Phase 5: Distribution & Community
 

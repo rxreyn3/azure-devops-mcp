@@ -1,15 +1,36 @@
 # Azure DevOps MCP Server
 
-An MCP (Model Context Protocol) server that wraps Azure DevOps APIs for agent and queue management within a project context.
+An MCP (Model Context Protocol) server that provides comprehensive Azure DevOps build and pipeline management capabilities within a project context. This server enables AI assistants to monitor builds, execute pipelines, troubleshoot failures, and manage build infrastructure.
 
 **Developer**: Ryan Reynolds ([@rxreyn3](https://github.com/rxreyn3))
 
 ## Features
 
 - **Project-scoped access**: Works within your project context
+- **Build operations**: Monitor, execute, and troubleshoot builds
+- **Pipeline management**: Discover and inspect build definitions
 - **Queue management**: List and inspect agent queues
 - **Agent discovery**: Find agents and their status (requires org permissions)
 - **Permission-aware**: Gracefully handles permission limitations with clear guidance
+
+## Tool Selection Philosophy
+
+This MCP server provides a focused subset of Azure DevOps functionality optimized for daily build operations. We've prioritized tools based on:
+
+1. **Usage Frequency**: Analysis shows 80% of API calls focus on build monitoring and execution
+2. **Project Scope**: All tools work within project boundaries (except agent discovery)
+3. **Practical Value**: Each tool addresses specific pain points in build administration
+
+### Why These Tools?
+
+- **Build Monitoring**: `list_builds`, `get_build_details` - Cover 60% of daily operations
+- **Build Execution**: `queue_build` - Essential for CI/CD automation
+- **Troubleshooting**: `get_build_logs`, `get_build_timeline` - Critical for failure analysis
+- **Pipeline Discovery**: `list_pipelines`, `get_pipeline_config` - Helps users find and understand build definitions
+- **Build Management**: `manage_build` - Cancel stuck builds or retain important ones
+- **Health Monitoring**: `monitor_build_health` - Overview of build success rates and trends
+
+See [API Priorities Documentation](docs/ado-mcp-api-priorities.md) for detailed analysis.
 
 ## Installation
 
@@ -54,20 +75,60 @@ Add to your Claude Desktop configuration:
 
 ## Available Tools
 
-### `ado_health_check`
+### Agent & Queue Management
+
+#### `ado_health_check`
 Check connection to Azure DevOps and verify configuration.
 
-### `list_project_queues`
+#### `list_project_queues`
 List all agent queues available in your project.
 
-### `get_queue_details`
+#### `get_queue_details`
 Get detailed information about a specific queue by ID or name.
 
-### `find_agent`
+#### `find_agent`
 Find which queue/pool an agent belongs to (requires org permissions).
 
-### `list_queue_agents`
+#### `list_queue_agents`
 List all agents in a specific queue (requires org permissions).
+
+### Build Operations
+
+#### `list_builds`
+List builds with smart filtering options:
+- Filter by status (inProgress, completed)
+- Filter by result (succeeded, failed, canceled)
+- Time-based filtering (last N hours)
+- Filter by definition, branch, or user
+
+#### `get_build_details`
+Get comprehensive information about a specific build including timeline and changes.
+
+#### `queue_build`
+Start a new build with custom parameters:
+- Specify branch to build
+- Set build parameters
+- Control queue priority
+
+#### `get_build_logs`
+View build logs for troubleshooting failures.
+
+#### `manage_build`
+Manage running or completed builds:
+- Cancel in-progress builds
+- Retain important builds
+- Remove retention
+
+### Pipeline Management
+
+#### `list_pipelines`
+Discover available build pipelines with filtering by name or path.
+
+#### `get_pipeline_config`
+View detailed pipeline configuration including triggers, variables, and repository settings.
+
+#### `monitor_build_health`
+Get build health metrics and success rates over a time period.
 
 ## Development
 
