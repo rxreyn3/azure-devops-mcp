@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0
+
+### Minor Changes
+
+- 0e066c1: Successfully implemented a new list_agents tool with partial name matching and fixed empty failureReasons arrays in build
+- 4d1fbc3: Implemented pipeline definition caching so that it's easier to discover pipelines based on partial names.
+
+### Patch Changes
+
+- ddaebc6: Added better error handling and type checking.
+
 ## 1.0.2
 
 ### Patch Changes
