@@ -7,7 +7,7 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
     ado_health_check: {
       tool: {
         name: 'ado_health_check',
-        description: 'Check connection to Azure DevOps and verify permissions',
+        description: 'Check connection to Azure DevOps and verify permissions. Use this to test your PAT token and ensure the server is properly configured.',
         inputSchema: {
           type: 'object',
           properties: {},
@@ -36,7 +36,7 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
     list_project_queues: {
       tool: {
         name: 'list_project_queues',
-        description: 'List all agent queues in the project',
+        description: 'List all agent queues available in the project. Returns queue IDs, names, and pool information. Queues are project-scoped views of agent pools.',
         inputSchema: {
           type: 'object',
           properties: {},
@@ -71,13 +71,13 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
     get_queue_details: {
       tool: {
         name: 'get_queue_details',
-        description: 'Get detailed information about a specific queue',
+        description: 'Get detailed information about a specific queue including pool details and agent count. Provides more context than list_project_queues.',
         inputSchema: {
           type: 'object',
           properties: {
             queueIdOrName: {
               type: 'string',
-              description: 'Queue ID (number) or name',
+              description: 'Queue ID (number) or name. Queue IDs are more reliable than names. Find IDs using list_project_queues.',
             },
           },
           required: ['queueIdOrName'],
@@ -108,13 +108,13 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
     find_agent: {
       tool: {
         name: 'find_agent',
-        description: 'Find which queue/pool an agent belongs to (requires org permissions)',
+        description: 'Find which queue/pool an agent belongs to (requires org-level permissions). Searches across all pools in the organization. May fail with project-scoped PAT.',
         inputSchema: {
           type: 'object',
           properties: {
             agentName: {
               type: 'string',
-              description: 'Name of the agent to find',
+              description: 'Name of the agent to find. Agent names are case-sensitive. Partial matches not supported.',
             },
           },
           required: ['agentName'],
@@ -142,13 +142,13 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
     list_queue_agents: {
       tool: {
         name: 'list_queue_agents',
-        description: 'List all agents in a queue (requires org permissions)',
+        description: 'List all agents in a specific queue (requires org-level permissions). Shows agent status, version, and capabilities. May fail with project-scoped PAT.',
         inputSchema: {
           type: 'object',
           properties: {
             queueId: {
               type: 'number',
-              description: 'Queue ID (not poolId) - use the queue\'s ID from list_project_queues',
+              description: 'Queue ID (not poolId). Must use the queue ID from list_project_queues, not the underlying pool ID.',
             },
           },
           required: ['queueId'],
@@ -183,21 +183,21 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
     list_agents: {
       tool: {
         name: 'list_agents',
-        description: 'List agents available in your project\'s pools with optional filtering',
+        description: 'List agents available in your project\'s pools with optional filtering. Shows agent status, version, and basic info. Works with project-scoped permissions.',
         inputSchema: {
           type: 'object',
           properties: {
             nameFilter: {
               type: 'string',
-              description: 'Filter agents by name (partial match, e.g., "BM40")',
+              description: 'Filter agents by name (partial match supported, e.g., "BM40"). Case-insensitive. Matches anywhere in agent name.',
             },
             poolNameFilter: {
               type: 'string',
-              description: 'Filter by pool name (partial match)',
+              description: 'Filter by pool name (partial match supported). Case-insensitive. Useful when you have multiple pools.',
             },
             onlyOnline: {
               type: 'boolean',
-              description: 'Only show online agents',
+              description: 'Only show online agents (default: false). Online agents are ready to run builds immediately.',
               default: false,
             },
           },

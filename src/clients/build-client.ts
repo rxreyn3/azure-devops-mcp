@@ -11,7 +11,8 @@ import {
   BuildReason,
   BuildQueryOrder,
   QueryDeletedOption,
-  DefinitionQueueStatus
+  DefinitionQueueStatus,
+  DefinitionQueryOrder
 } from 'azure-devops-node-api/interfaces/BuildInterfaces.js';
 import { AzureDevOpsBaseClient } from './ado-base-client.js';
 import { ApiResult, BuildInfo, PipelineInfo, BuildTimelineRecord } from '../types/index.js';
@@ -56,6 +57,11 @@ export interface BuildUpdateOptions {
 
 export class BuildClient extends AzureDevOpsBaseClient {
   private buildApi: IBuildApi | null = null;
+  private pipelineCache?: {
+    data: PipelineInfo[];
+    fetchedAt: Date;
+    expiryMs: number;
+  };
   
   getConfig() {
     return this.config;
@@ -70,6 +76,92 @@ export class BuildClient extends AzureDevOpsBaseClient {
       await this.initialize();
     }
     return this.buildApi!;
+  }
+
+  /**
+   * Check if the pipeline cache is valid
+   */
+  private isPipelineCacheValid(): boolean {
+    if (!this.pipelineCache) return false;
+    const age = Date.now() - this.pipelineCache.fetchedAt.getTime();
+    return age < this.pipelineCache.expiryMs;
+  }
+
+  /**
+   * Clear the pipeline cache
+   */
+  clearPipelineCache(): void {
+    this.pipelineCache = undefined;
+  }
+
+  /**
+   * Filter cached pipelines by name and path
+   */
+  private filterCachedPipelines(name?: string, path?: string): PipelineInfo[] {
+    if (!this.pipelineCache) return [];
+    
+    let results = this.pipelineCache.data;
+    
+    if (name) {
+      const lowerName = name.toLowerCase();
+      results = results.filter(p => p.name.toLowerCase().includes(lowerName));
+    }
+    
+    if (path) {
+      results = results.filter(p => p.path === path);
+    }
+    
+    return results;
+  }
+
+  /**
+   * Refresh the pipeline cache by fetching all definitions
+   */
+  private async refreshPipelineCache(includeLatestBuilds?: boolean): Promise<void> {
+    const api = await this.ensureBuildApi();
+    let allDefinitions: BuildDefinitionReference[] = [];
+    let continuationToken: string | undefined;
+    const pageSize = 200; // Larger page size for efficiency
+    
+    do {
+      const response = await api.getDefinitions(
+        this.config.project,
+        undefined, // name - we want all
+        undefined, // repositoryId
+        undefined, // repositoryType
+        DefinitionQueryOrder.LastModifiedDescending, // Get most recent first
+        pageSize,
+        continuationToken,
+        undefined, // minMetricsTime
+        undefined, // definitionIds
+        undefined, // path - we want all
+        undefined, // builtAfter
+        undefined, // notBuiltAfter
+        undefined, // includeAllProperties
+        includeLatestBuilds
+      );
+      
+      // PagedList extends Array, so we can spread it directly
+      allDefinitions = allDefinitions.concat(...response);
+      continuationToken = response.continuationToken;
+    } while (continuationToken);
+    
+    // Filter and map to PipelineInfo
+    const pipelines = allDefinitions
+      .filter((d) => 
+        hasRequiredProperties<{ id: number; name: string; path: string }>(
+          d,
+          ['id', 'name', 'path']
+        )
+      )
+      .map((d) => this.mapPipelineInfo(d as BuildDefinitionReference));
+    
+    // Update cache
+    this.pipelineCache = {
+      data: pipelines,
+      fetchedAt: new Date(),
+      expiryMs: 5 * 60 * 1000 // 5 minutes
+    };
   }
 
   /**
@@ -125,6 +217,10 @@ export class BuildClient extends AzureDevOpsBaseClient {
     const api = await this.ensureBuildApi();
     
     return this.handleApiCall('get build', async () => {
+      if (buildId === undefined || buildId === null || isNaN(buildId)) {
+        throw createNotFoundError('Build', buildId?.toString() || 'undefined');
+      }
+      
       const build = await api.getBuild(this.config.project, buildId, propertyFilters);
       
       if (!build || !build.id) {
@@ -176,6 +272,10 @@ export class BuildClient extends AzureDevOpsBaseClient {
     const api = await this.ensureBuildApi();
     
     return this.handleApiCall('get build timeline', async () => {
+      if (buildId === undefined || buildId === null || isNaN(buildId)) {
+        throw createNotFoundError('Build timeline', buildId?.toString() || 'undefined');
+      }
+      
       const timeline = await api.getBuildTimeline(
         this.config.project,
         buildId,
@@ -216,6 +316,10 @@ export class BuildClient extends AzureDevOpsBaseClient {
     const api = await this.ensureBuildApi();
     
     return this.handleApiCall('get build logs', async () => {
+      if (buildId === undefined || buildId === null || isNaN(buildId)) {
+        throw createNotFoundError('Build logs', buildId?.toString() || 'undefined');
+      }
+      
       const logs = await api.getBuildLogs(this.config.project, buildId);
       
       if (!logs) {
@@ -238,6 +342,14 @@ export class BuildClient extends AzureDevOpsBaseClient {
     const api = await this.ensureBuildApi();
     
     return this.handleApiCall('get build log lines', async () => {
+      if (buildId === undefined || buildId === null || isNaN(buildId)) {
+        throw createNotFoundError('Build log', `${buildId?.toString() || 'undefined'}/${logId}`);
+      }
+      
+      if (logId === undefined || logId === null || isNaN(logId)) {
+        throw createNotFoundError('Build log', `${buildId}/${logId?.toString() || 'undefined'}`);
+      }
+      
       const lines = await api.getBuildLogLines(
         this.config.project,
         buildId,
@@ -265,6 +377,10 @@ export class BuildClient extends AzureDevOpsBaseClient {
     const api = await this.ensureBuildApi();
     
     return this.handleApiCall('get build changes', async () => {
+      if (buildId === undefined || buildId === null || isNaN(buildId)) {
+        throw createNotFoundError('Build changes', buildId?.toString() || 'undefined');
+      }
+      
       const changes = await api.getBuildChanges(
         this.config.project,
         buildId,
@@ -278,7 +394,7 @@ export class BuildClient extends AzureDevOpsBaseClient {
   }
 
   /**
-   * Get build definitions (pipelines)
+   * Get build definitions (pipelines) using cache-first approach
    */
   async getDefinitions(
     name?: string,
@@ -286,34 +402,22 @@ export class BuildClient extends AzureDevOpsBaseClient {
     includeLatestBuilds?: boolean,
     top?: number
   ): Promise<ApiResult<PipelineInfo[]>> {
-    const api = await this.ensureBuildApi();
-    
     return this.handleApiCall('get definitions', async () => {
-      const definitions = await api.getDefinitions(
-        this.config.project,
-        name,
-        undefined, // repositoryId
-        undefined, // repositoryType
-        1, // NameAscending
-        top,
-        undefined, // continuationToken
-        undefined, // minMetricsTime
-        undefined, // definitionIds
-        path,
-        undefined, // builtAfter
-        undefined, // notBuiltAfter
-        undefined, // includeAllProperties
-        includeLatestBuilds
-      );
+      // Check if cache is valid
+      if (!this.isPipelineCacheValid()) {
+        // Refresh cache if invalid or missing
+        await this.refreshPipelineCache(includeLatestBuilds);
+      }
       
-      return definitions
-        .filter((d) => 
-          hasRequiredProperties<{ id: number; name: string; path: string }>(
-            d,
-            ['id', 'name', 'path']
-          )
-        )
-        .map((d) => this.mapPipelineInfo(d as BuildDefinitionReference));
+      // Apply filters on cached data
+      const filteredPipelines = this.filterCachedPipelines(name, path);
+      
+      // If top is specified, limit the results
+      if (top && top > 0) {
+        return filteredPipelines.slice(0, top);
+      }
+      
+      return filteredPipelines;
     });
   }
 
