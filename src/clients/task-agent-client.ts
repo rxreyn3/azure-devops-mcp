@@ -169,12 +169,20 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
     const api = await this.ensureTaskAgentApi();
     
     return this.handleApiCall('list project agents', async () => {
-      // Step 1: Get project queues with optional name filter
-      const queues = await api.getAgentQueues(
+      // Step 1: Get all project queues (API requires exact match, so we filter later)
+      const allQueues = await api.getAgentQueues(
         this.config.project,
-        options.poolNameFilter, // User thinks of this as "pool name"
+        undefined, // Get all queues, we'll filter ourselves
         TaskAgentQueueActionFilter.Use
       );
+      
+      // Filter queues by pool name if specified (partial match)
+      let queues = allQueues;
+      if (options.poolNameFilter) {
+        queues = allQueues.filter(q => 
+          q.pool?.name?.toLowerCase().includes(options.poolNameFilter!.toLowerCase())
+        );
+      }
       
       if (!queues || queues.length === 0) {
         return [];

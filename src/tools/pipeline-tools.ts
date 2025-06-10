@@ -10,21 +10,21 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
     list_pipelines: {
       tool: {
         name: 'list_pipelines',
-        description: 'List available build pipelines/definitions',
+        description: 'List available build pipelines/definitions. Returns pipeline IDs, names, paths, and status. Use includeLatestBuild to see recent activity.',
         inputSchema: {
           type: 'object',
           properties: {
             name: {
               type: 'string',
-              description: 'Filter by pipeline name (partial match)',
+              description: 'Filter by pipeline name. API uses exact match, but tool provides partial match by fetching all pipelines when filter is specified. Case-insensitive.',
             },
             path: {
               type: 'string',
-              description: 'Filter by folder path (use backslashes, e.g., "\\\\Apps\\\\Web")',
+              description: 'Filter by folder path (use double backslashes, e.g., "\\\\Apps\\\\Web"). Helps organize pipelines in large projects.',
             },
             includeLatestBuild: {
               type: 'boolean',
-              description: 'Include information about the latest build',
+              description: 'Include information about the latest build (default: false). Shows last build status and time for each pipeline.',
             },
           },
           required: [],
@@ -39,8 +39,7 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
         const result = await client.getDefinitions(
           typedArgs.name,
           typedArgs.path,
-          typedArgs.includeLatestBuild,
-          50
+          typedArgs.includeLatestBuild
         );
 
         if (!result.success) {
@@ -73,22 +72,22 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
     get_pipeline_config: {
       tool: {
         name: 'get_pipeline_config',
-        description: 'Get detailed pipeline/definition configuration',
+        description: 'Get detailed pipeline/definition configuration including variables, triggers, and repository settings. Essential for understanding pipeline behavior.',
         inputSchema: {
           type: 'object',
           properties: {
             definitionId: {
               type: 'number',
-              description: 'Pipeline definition ID',
+              description: 'Pipeline definition ID. Use list_pipelines to find pipeline IDs.',
             },
             includeVariables: {
               type: 'boolean',
-              description: 'Include variable definitions',
+              description: 'Include variable definitions (default: true). Shows pipeline variables but masks secret values.',
               default: true,
             },
             includeTriggers: {
               type: 'boolean',
-              description: 'Include trigger configuration',
+              description: 'Include trigger configuration (default: true). Shows CI triggers, branch filters, and PR validation settings.',
               default: true,
             },
           },
@@ -197,17 +196,17 @@ export function createPipelineTools(client: BuildClient): Record<string, ToolDef
     monitor_build_health: {
       tool: {
         name: 'monitor_build_health',
-        description: 'Get build health metrics and overview',
+        description: 'Get build health metrics and overview. Provides success rates, average durations, and failure patterns. Includes currently running builds.',
         inputSchema: {
           type: 'object',
           properties: {
             definitionId: {
               type: 'number',
-              description: 'Filter by specific pipeline definition ID',
+              description: 'Filter by specific pipeline definition ID (optional). Without this, shows metrics across all pipelines.',
             },
             hours: {
               type: 'number',
-              description: 'Number of hours to look back',
+              description: 'Number of hours to look back (default: 24). Longer periods provide better statistical accuracy.',
               default: 24,
             },
           },

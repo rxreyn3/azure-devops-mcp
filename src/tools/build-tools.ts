@@ -8,42 +8,57 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
     list_builds: {
       tool: {
         name: 'list_builds',
-        description: 'List builds with smart filtering for common queries',
+        description: 'List builds with smart filtering for common queries. Supports filtering by status, result, time range, branch, user, and pipeline. Results ordered by finish time (newest first).',
         inputSchema: {
           type: 'object',
           properties: {
             status: {
               type: 'string',
               enum: ['all', 'inProgress', 'completed', 'notStarted'],
-              description: 'Filter by build status',
+              description: 'Filter by build status. Use "inProgress" to find active builds, "completed" for finished builds.',
             },
             result: {
               type: 'string',
               enum: ['all', 'succeeded', 'failed', 'canceled', 'partiallySucceeded'],
-              description: 'Filter by build result (only for completed builds)',
+              description: 'Filter by build result (only applies to completed builds). "succeeded" includes fully successful builds only.',
             },
             top: {
               type: 'number',
-              description: 'Maximum number of builds to return (default: 20)',
+              description: 'Maximum number of builds to return (default: 20). API supports up to 200 per request.',
               minimum: 1,
               maximum: 200,
             },
             definitionId: {
               type: 'number',
-              description: 'Filter by specific pipeline/definition ID',
+              description: 'Filter by specific pipeline/definition ID. Use list_pipelines to find available pipeline IDs.',
             },
             requestedFor: {
               type: 'string',
-              description: 'Filter by user who requested the build (email or display name)',
+              description: 'Filter by user who requested the build. Accepts email address or display name. Case-insensitive partial match.',
             },
             sinceHours: {
               type: 'number',
-              description: 'Filter builds from the last N hours (default: 24)',
+              description: 'Filter builds from the last N hours (default: 24). Useful for recent activity monitoring.',
               minimum: 1,
             },
             branchName: {
               type: 'string',
-              description: 'Filter by source branch name',
+              description: 'Filter by source branch name (e.g., "refs/heads/main" or just "main"). Supports partial matching.',
+            },
+            tags: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Filter by build tags. Returns builds that have ALL specified tags.',
+            },
+            reason: {
+              type: 'string',
+              enum: ['all', 'manual', 'individualCI', 'batchedCI', 'schedule', 'pullRequest'],
+              description: 'Filter by build trigger reason. Useful to separate CI builds from manual/PR builds.',
+            },
+            queues: {
+              type: 'array',
+              items: { type: 'number' },
+              description: 'Filter by agent queue IDs. Use list_project_queues to find queue IDs.',
             },
           },
           required: [],
@@ -58,6 +73,9 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
           requestedFor?: string;
           sinceHours?: number;
           branchName?: string;
+          tags?: string[];
+          reason?: string;
+          queues?: number[];
         };
         // Build filter based on arguments
         const filter: BuildFilter = {
@@ -102,6 +120,22 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
         }
         if (typedArgs.branchName) {
           filter.branchName = typedArgs.branchName;
+        }
+        if (typedArgs.tags && typedArgs.tags.length > 0) {
+          filter.tagFilters = typedArgs.tags;
+        }
+        if (typedArgs.reason && typedArgs.reason !== 'all') {
+          const reasonMap: { [key: string]: BuildReason } = {
+            manual: BuildReason.Manual,
+            individualCI: BuildReason.IndividualCI,
+            batchedCI: BuildReason.BatchedCI,
+            schedule: BuildReason.Schedule,
+            pullRequest: BuildReason.PullRequest,
+          };
+          filter.reasonFilter = reasonMap[typedArgs.reason];
+        }
+        if (typedArgs.queues && typedArgs.queues.length > 0) {
+          filter.queues = typedArgs.queues;
         }
 
         const result = await client.getBuilds(filter);
@@ -151,21 +185,21 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
     get_build_details: {
       tool: {
         name: 'get_build_details',
-        description: 'Get comprehensive build details including timeline and changes',
+        description: 'Get comprehensive build details including timeline and changes. Returns full build metadata, execution stages/tasks, and associated commits. Use for debugging failed builds.',
         inputSchema: {
           type: 'object',
           properties: {
             buildId: {
               type: 'number',
-              description: 'The build ID to get details for',
+              description: 'The build ID to get details for. Find build IDs using list_builds.',
             },
             includeTimeline: {
               type: 'boolean',
-              description: 'Include build timeline showing stages and tasks (default: true)',
+              description: 'Include build timeline showing stages and tasks with error/warning counts (default: true). Essential for debugging failures.',
             },
             includeChanges: {
               type: 'boolean',
-              description: 'Include source changes that triggered the build (default: true)',
+              description: 'Include source changes (commits) that triggered the build (default: true). Shows up to 10 recent commits.',
             },
           },
           required: ['buildId'],
@@ -312,21 +346,21 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
     queue_build: {
       tool: {
         name: 'queue_build',
-        description: 'Queue a new build with optional parameters',
+        description: 'Queue a new build with optional parameters. Triggers pipeline execution and returns build ID for tracking. Supports branch selection, priority, and custom parameters.',
         inputSchema: {
           type: 'object',
           properties: {
             definitionId: {
               type: 'number',
-              description: 'Pipeline/definition ID to queue',
+              description: 'Pipeline/definition ID to queue. Use list_pipelines to find available pipeline IDs.',
             },
             sourceBranch: {
               type: 'string',
-              description: 'Branch to build (e.g., refs/heads/main)',
+              description: 'Branch to build (e.g., "refs/heads/main" or "refs/heads/feature/xyz"). Defaults to pipeline\'s default branch.',
             },
             parameters: {
               type: 'object',
-              description: 'Build parameters as key-value pairs',
+              description: 'Build parameters as key-value pairs. Pipeline-specific variables that override defaults.',
               additionalProperties: {
                 type: 'string',
               },
@@ -334,12 +368,12 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
             priority: {
               type: 'string',
               enum: ['low', 'belowNormal', 'normal', 'aboveNormal', 'high'],
-              description: 'Build priority (default: normal)',
+              description: 'Build priority (default: normal). Higher priority builds start sooner when agents are busy.',
             },
             reason: {
               type: 'string',
               enum: ['manual', 'individualCI', 'batchedCI', 'schedule', 'validateShelveset', 'checkInShelveset', 'pullRequest', 'buildCompletion', 'resourceTrigger'],
-              description: 'Reason for the build (default: manual)',
+              description: 'Reason for the build (default: manual). Usually set automatically but can be overridden for tracking.',
             },
           },
           required: ['definitionId'],
@@ -413,25 +447,25 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
     get_build_logs: {
       tool: {
         name: 'get_build_logs',
-        description: 'Get build logs for troubleshooting',
+        description: 'Get build logs for troubleshooting. Lists all available logs or retrieves specific log content. Use to diagnose build failures and view detailed execution output.',
         inputSchema: {
           type: 'object',
           properties: {
             buildId: {
               type: 'number',
-              description: 'The build ID to get logs for',
+              description: 'The build ID to get logs for. Find build IDs using list_builds.',
             },
             logId: {
               type: 'number',
-              description: 'Specific log ID to retrieve (optional)',
+              description: 'Specific log ID to retrieve content (optional). Without this, lists all available logs.',
             },
             startLine: {
               type: 'number',
-              description: 'Starting line number (for specific log)',
+              description: 'Starting line number (for specific log). Use with logId to get a subset of lines.',
             },
             endLine: {
               type: 'number',
-              description: 'Ending line number (for specific log)',
+              description: 'Ending line number (for specific log). Use with logId to get a subset of lines.',
             },
           },
           required: ['buildId'],
@@ -444,6 +478,11 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
           startLine?: number;
           endLine?: number;
         };
+        
+        // Debug: Check what we received
+        console.log('get_build_logs args:', JSON.stringify(args));
+        console.log('typedArgs.buildId:', typedArgs.buildId, 'type:', typeof typedArgs.buildId);
+        
         // If specific log requested, get its content
         if (typedArgs.logId) {
           const linesResult = await client.getBuildLogLines(
@@ -527,18 +566,18 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
     manage_build: {
       tool: {
         name: 'manage_build',
-        description: 'Cancel, retain, or retry builds',
+        description: 'Cancel running builds or manage build retention. Use "cancel" to stop in-progress builds, "retain" to keep builds indefinitely, "unretain" to allow automatic cleanup.',
         inputSchema: {
           type: 'object',
           properties: {
             buildId: {
               type: 'number',
-              description: 'The build ID to manage',
+              description: 'The build ID to manage. Find build IDs using list_builds.',
             },
             action: {
               type: 'string',
               enum: ['cancel', 'retain', 'unretain'],
-              description: 'Action to perform on the build',
+              description: 'Action to perform: "cancel" (stop running build), "retain" (keep forever), "unretain" (allow deletion).',
             },
           },
           required: ['buildId', 'action'],
