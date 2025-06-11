@@ -6,22 +6,19 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { Config } from './config.js';
 import { TaskAgentClient } from './clients/task-agent-client.js';
-import { BuildClient } from './clients/build-client.js';
 import { createToolRegistry } from './tools/index.js';
 import packageJson from '../package.json' with { type: 'json' };
 
 export class AzureDevOpsMCPServer {
   private server: Server;
   private taskAgentClient: TaskAgentClient;
-  private buildClient: BuildClient;
   private toolRegistry: ReturnType<typeof createToolRegistry>;
 
   constructor(config: Config) {
     this.taskAgentClient = new TaskAgentClient(config);
-    this.buildClient = new BuildClient(config);
     
-    // Initialize tools registry with all tools
-    this.toolRegistry = createToolRegistry(this.taskAgentClient, this.buildClient);
+    // Initialize tools registry with agent tools
+    this.toolRegistry = createToolRegistry(this.taskAgentClient);
     
     this.server = new Server(
       {
@@ -61,9 +58,8 @@ export class AzureDevOpsMCPServer {
   async start(): Promise<void> {
     const transport = new StdioServerTransport();
     
-    // Initialize both clients
+    // Initialize client
     await this.taskAgentClient.initialize();
-    await this.buildClient.initialize();
     
     await this.server.connect(transport);
     console.error('Azure DevOps MCP Server started');
