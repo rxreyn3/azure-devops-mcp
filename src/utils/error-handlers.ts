@@ -2,13 +2,15 @@ import { PermissionError, ApiResult } from '../types/index.js';
 
 export function createPermissionError(
   operation: string,
-  requiredPermission: string
+  requiredPermission: string,
+  isOrgLevel: boolean = false
 ): PermissionError {
+  const scope = isOrgLevel ? 'organization-level' : 'project or organization-level';
   return {
     type: 'permission',
     message: `Access denied. You need '${requiredPermission}' permission to ${operation}.`,
     requiredPermission,
-    suggestion: `Ask your Azure DevOps administrator to grant you '${requiredPermission}' permission at the organization or project level.`
+    suggestion: `Ensure your PAT has ${scope} 'Agent Pools (read)' permission. ${isOrgLevel ? 'Project-scoped PATs will not work for this operation.' : ''}`
   };
 }
 
@@ -26,16 +28,13 @@ export function createApiError(message: string, details?: unknown) {
   };
 }
 
-export function handleAzureDevOpsError(error: unknown, operation: string): ApiResult<unknown> {
+export function handleAzureDevOpsError(error: unknown, operation: string, isOrgLevel: boolean = false): ApiResult<unknown> {
   const errorObj = error as { statusCode?: number; message?: string };
   
   if (errorObj.statusCode === 401 || errorObj.statusCode === 403) {
-    const permissionMatch = errorObj.message?.match(/permission|access|authorization/i);
-    const permission = permissionMatch ? 'appropriate' : 'higher-level';
-    
     return {
       success: false,
-      error: createPermissionError(operation, permission)
+      error: createPermissionError(operation, 'Agent Pools (read)', isOrgLevel)
     };
   }
 

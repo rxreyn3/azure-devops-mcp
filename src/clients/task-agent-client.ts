@@ -113,7 +113,7 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
       }
       
       return foundAgents;
-    });
+    }, true);
   }
 
   async listQueueAgents(queueId: number): Promise<ApiResult<AgentInfo[]>> {
@@ -142,7 +142,7 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
         }
         throw error;
       }
-    });
+    }, true);
   }
 
   private mapAgentInfo(agent: TaskAgent): AgentInfo {
@@ -240,6 +240,6 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
       }
       
       return agents;
-    });
+    }, true);
   }
 }

@@ -15,13 +15,14 @@ export abstract class AzureDevOpsBaseClient {
 
   protected async handleApiCall<T>(
     operation: string,
-    apiCall: () => Promise<T>
+    apiCall: () => Promise<T>,
+    isOrgLevel: boolean = false
   ): Promise<ApiResult<T>> {
     try {
       const result = await apiCall();
       return { success: true, data: result };
     } catch (error) {
-      return handleAzureDevOpsError(error, operation) as ApiResult<T>;
+      return handleAzureDevOpsError(error, operation, isOrgLevel) as ApiResult<T>;
     }
   }
 
