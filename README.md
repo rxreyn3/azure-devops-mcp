@@ -30,6 +30,84 @@ This server provides tools with different scope requirements:
 
 > **Note**: Project-scoped PATs will only work with `project_*` tools. The `org_*` tools require organization-level access because agents are managed at the organization level in Azure DevOps.
 
+## Installation & Usage
+
+This MCP server can be used with Windsurf, Claude Desktop, and Claude Code. All methods use `npx` to run the package directly without installation.
+
+### Usage in Windsurf
+
+Add the following to your Windsurf settings at `~/.windsurf/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "azure-devops": {
+      "command": "npx",
+      "args": ["-y", "@rxreyn3/azure-devops-mcp"],
+      "env": {
+        "AZURE_DEVOPS_ORG_URL": "https://dev.azure.com/your-organization",
+        "AZURE_DEVOPS_PROJECT": "your-project-name",
+        "AZURE_DEVOPS_PAT": "your-personal-access-token"
+      }
+    }
+  }
+}
+```
+
+### Usage in Claude Desktop
+
+Add the following to your Claude Desktop configuration:
+
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`  
+**Windows**: `%APPDATA%/Claude/claude_desktop_config.json`  
+**Linux**: `~/.config/Claude/claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "azure-devops": {
+      "command": "npx",
+      "args": ["-y", "@rxreyn3/azure-devops-mcp"],
+      "env": {
+        "AZURE_DEVOPS_ORG_URL": "https://dev.azure.com/your-organization",
+        "AZURE_DEVOPS_PROJECT": "your-project-name",
+        "AZURE_DEVOPS_PAT": "your-personal-access-token"
+      }
+    }
+  }
+}
+```
+
+### Usage in Claude Code
+
+Use the Claude Code CLI to add the server:
+
+```bash
+# Add the MCP server with environment variables
+claude mcp add azure-devops npx -- -y @rxreyn3/azure-devops-mcp
+
+# Then set the required environment variables
+export AZURE_DEVOPS_ORG_URL="https://dev.azure.com/your-organization"
+export AZURE_DEVOPS_PROJECT="your-project-name"
+export AZURE_DEVOPS_PAT="your-personal-access-token"
+
+# Or add with inline environment variables (Unix/macOS/Linux)
+AZURE_DEVOPS_ORG_URL="https://dev.azure.com/your-organization" \
+AZURE_DEVOPS_PROJECT="your-project-name" \
+AZURE_DEVOPS_PAT="your-personal-access-token" \
+claude mcp add azure-devops npx -- -y @rxreyn3/azure-devops-mcp
+```
+
+### Configuration Example
+
+Replace the following values in any of the above configurations:
+
+- `your-organization`: Your Azure DevOps organization name
+- `your-project-name`: Your Azure DevOps project name  
+- `your-personal-access-token`: Your PAT with Agent Pools (read) permission
+
+Optional: Add `"AZURE_DEVOPS_API_VERSION": "7.1"` to the env section if you need a specific API version.
+
 ## Available Tools
 
 ### Project-Scoped Tools
