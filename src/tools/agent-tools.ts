@@ -44,7 +44,7 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
         },
       },
       handler: async () => {
-        const result = await client.listProjectQueues();
+        const result = await client.getQueues();
 
         if (!result.success) {
           return formatErrorResponse(result.error);
@@ -86,9 +86,9 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
       handler: async (args: unknown) => {
         const typedArgs = args as { queueIdOrName: string };
         const id = parseInt(typedArgs.queueIdOrName, 10);
-        const result = await client.getQueueDetails(
-          isNaN(id) ? typedArgs.queueIdOrName : id,
-        );
+        const result = await client.getQueue({
+          queueIdOrName: isNaN(id) ? typedArgs.queueIdOrName : id,
+        });
 
         if (!result.success) {
           return formatErrorResponse(result.error);
@@ -159,6 +159,16 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
               description: 'Only show online agents (default: false). Online agents are ready to run builds immediately.',
               default: false,
             },
+            limit: {
+              type: 'number',
+              description: 'Maximum number of agents to return per page (default: 50, max: 200)',
+              default: 50,
+              maximum: 200,
+            },
+            continuationToken: {
+              type: 'string',
+              description: 'Token from previous response to get next page of results',
+            },
           },
           required: [],
         },
@@ -168,17 +178,19 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
           nameFilter?: string;
           poolNameFilter?: string;
           onlyOnline?: boolean;
+          limit?: number;
+          continuationToken?: string;
         };
         
-        const result = await client.listProjectAgents(typedArgs);
+        const result = await client.getAgents(typedArgs);
 
         if (!result.success) {
           return formatErrorResponse(result.error);
         }
 
         // Group agents by pool for better readability
-        const agentsByPool: { [poolName: string]: typeof result.data } = {};
-        for (const agent of result.data) {
+        const agentsByPool: { [poolName: string]: typeof result.data.agents } = {};
+        for (const agent of result.data.agents) {
           if (!agentsByPool[agent.poolName]) {
             agentsByPool[agent.poolName] = [];
           }
@@ -186,7 +198,7 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
         }
 
         const summary = {
-          agents: result.data.map(a => ({
+          agents: result.data.agents.map(a => ({
             name: a.name,
             pool: a.poolName, // User-friendly "pool" terminology
             status: a.status,
@@ -195,10 +207,16 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
             capabilities: [] // Placeholder - could be extended later
           })),
           summary: {
-            total: result.data.length,
-            online: result.data.filter(a => a.status === 'Online').length,
-            offline: result.data.filter(a => a.status === 'Offline').length,
+            total: result.data.agents.length,
+            online: result.data.agents.filter(a => a.status === 'Online').length,
+            offline: result.data.agents.filter(a => a.status === 'Offline').length,
             pools: Object.keys(agentsByPool).sort()
+          },
+          continuationToken: result.data.continuationToken,
+          hasMore: result.data.hasMore,
+          pageInfo: {
+            returned: result.data.agents.length,
+            requested: typedArgs.limit || 50
           }
         };
 

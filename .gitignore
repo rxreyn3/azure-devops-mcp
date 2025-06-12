@@ -21,7 +21,6 @@ pnpm-lock.yaml
 !.env.example
 .env.local
 .env.development.local
-.env.test.local
 .env.production.local
 *.pem
 *.key
@@ -54,11 +53,6 @@ dist/
 build/
 out/
 *.tsbuildinfo
-
-# Testing
-coverage/
-.nyc_output/
-junit.xml
 
 # Logs
 logs/

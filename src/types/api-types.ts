@@ -26,6 +26,14 @@ export interface ListAgentsOptions {
   nameFilter?: string;
   poolNameFilter?: string;
   onlyOnline?: boolean;
+  limit?: number;
+  continuationToken?: string;
+}
+
+export interface PagedAgentsResult {
+  agents: ProjectAgentInfo[];
+  continuationToken?: string;
+  hasMore: boolean;
 }
 
 export interface PermissionError {

@@ -12,7 +12,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "release": "changeset publish"
   },
   "keywords": [
     "mcp",

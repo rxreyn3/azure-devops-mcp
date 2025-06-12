@@ -7,7 +7,8 @@ A Model Context Protocol (MCP) server for interacting with Azure DevOps agents a
 ### Required PAT Permissions
 
 When creating your Personal Access Token (PAT) in Azure DevOps, you must grant:
-- **Agent Pools (read)** - Required for all tools
+- **Agent Pools (read)** - Required for agent management tools
+- **Build (read)** - Required for build timeline tools
 
 ### Scope Requirements
 
@@ -17,6 +18,7 @@ This server provides tools with different scope requirements:
 |------|--------------|-------------|
 | `project_*` tools | Project | Access project queues and basic information |
 | `org_*` tools | Organization | Access agent details (agents exist at org level) |
+| `build_*` tools | Project | Access build timelines and execution details |
 
 ### Creating a PAT
 
@@ -26,9 +28,11 @@ This server provides tools with different scope requirements:
 4. Set expiration as needed
 5. **For full functionality**, select:
    - Scope: **Organization** (not project-specific)
-   - Permissions: **Agent Pools (read)**
+   - Permissions: 
+     - **Agent Pools (read)** - For agent management tools
+     - **Build (read)** - For build timeline tools
 
-> **Note**: Project-scoped PATs will only work with `project_*` tools. The `org_*` tools require organization-level access because agents are managed at the organization level in Azure DevOps.
+> **Note**: Project-scoped PATs will only work with `project_*` and `build_*` tools. The `org_*` tools require organization-level access because agents are managed at the organization level in Azure DevOps.
 
 ## Installation & Usage
 
@@ -125,6 +129,22 @@ These tools require organization-level PAT permissions:
 - **`org_find_agent`** - Search for an agent across all organization pools
 - **`org_list_agents`** - List agents from project pools with filtering options
 
+### Build Tools
+
+These tools work with project-scoped PATs and require Build (read) permission:
+
+- **`build_list`** - List builds with filtering and pagination support
+  - Filter by pipeline name (partial match), status, result, or branch
+  - Returns build details including ID, number, status, and timing
+  - Supports pagination for large result sets
+  
+- **`build_list_definitions`** - List pipeline definitions to find IDs and names
+  - Filter by name (partial match)
+  - Useful for discovering pipeline IDs needed for other operations
+  
+- **`build_get_timeline`** - Get the timeline for a build showing all jobs, tasks, and which agents executed them
+  - Requires a build ID (use `build_list` to find build IDs)
+
 ## Configuration
 
 Set the following environment variables:
@@ -138,6 +158,44 @@ AZURE_DEVOPS_PAT=your-personal-access-token
 # Optional
 AZURE_DEVOPS_API_VERSION=7.1  # Default: 7.1
 ```
+
+## Usage Examples
+
+### Finding Recent Builds
+
+To get the latest build for a pipeline:
+```
+build_list(definitionNameFilter: "preflight", limit: 1)
+```
+
+To list all failed builds:
+```
+build_list(result: "Failed", limit: 20)
+```
+
+### Working with Pagination
+
+When listing builds returns a `continuationToken`, use it to get the next page:
+```
+// First call
+build_list(limit: 50)
+// Returns: { builds: [...], continuationToken: "abc123", hasMore: true }
+
+// Next page
+build_list(limit: 50, continuationToken: "abc123")
+```
+
+### Build Timeline Workflow
+
+1. Find a build:
+   ```
+   build_list(definitionNameFilter: "api", limit: 5)
+   ```
+
+2. Get its timeline using the build ID:
+   ```
+   build_get_timeline(buildId: 12345)
+   ```
 
 ## Azure DevOps Concepts
 
@@ -156,12 +214,15 @@ This server is tested with Azure DevOps Services (cloud). Self-hosted Azure DevO
 
 If you encounter permission errors:
 
-1. Verify your PAT has **Agent Pools (read)** permission
+1. Verify your PAT has the required permissions:
+   - **Agent Pools (read)** - For agent management tools
+   - **Build (read)** - For build timeline tools
 2. For `org_*` tools, ensure your PAT is organization-scoped, not project-scoped
 3. Check that your PAT hasn't expired
 4. Verify you have access to the specified project
 
 Common error messages:
 - "Access denied" - Your PAT lacks necessary permissions
-- "Resource not found" - The queue/agent doesn't exist or you lack access
+- "Resource not found" - The queue/agent/build doesn't exist or you lack access
 - "Invalid authentication" - Your PAT may be expired or incorrectly formatted
+- "Timeline not found" - The build ID doesn't exist or doesn't have timeline data
