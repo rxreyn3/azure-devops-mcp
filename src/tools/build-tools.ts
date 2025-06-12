@@ -1,64 +1,131 @@
 import { ToolDefinition } from '../types/tool-types.js';
-import { BuildClient, BuildFilter, QueueBuildOptions, BuildUpdateOptions } from '../clients/build-client.js';
-import { BuildStatus, BuildResult, BuildReason } from 'azure-devops-node-api/interfaces/BuildInterfaces.js';
+import { BuildClient } from '../clients/build-client.js';
 import { formatErrorResponse } from '../utils/formatters.js';
+import * as BuildInterfaces from 'azure-devops-node-api/interfaces/BuildInterfaces.js';
 
 export function createBuildTools(client: BuildClient): Record<string, ToolDefinition> {
   return {
-    list_builds: {
+    build_get_timeline: {
       tool: {
-        name: 'list_builds',
-        description: 'List builds with smart filtering for common queries. Supports filtering by status, result, time range, branch, user, and pipeline. Results ordered by finish time (newest first).',
+        name: 'build_get_timeline',
+        description: 'Get the timeline for a build showing all jobs, tasks, and which agents executed them. Requires build ID and optionally timeline ID.',
         inputSchema: {
           type: 'object',
           properties: {
-            status: {
-              type: 'string',
-              enum: ['all', 'inProgress', 'completed', 'notStarted'],
-              description: 'Filter by build status. Use "inProgress" to find active builds, "completed" for finished builds.',
-            },
-            result: {
-              type: 'string',
-              enum: ['all', 'succeeded', 'failed', 'canceled', 'partiallySucceeded'],
-              description: 'Filter by build result (only applies to completed builds). "succeeded" includes fully successful builds only.',
-            },
-            top: {
+            buildId: {
               type: 'number',
-              description: 'Maximum number of builds to return (default: 20). API supports up to 200 per request.',
-              minimum: 1,
+              description: 'The ID of the build to get timeline for',
+            },
+            timelineId: {
+              type: 'string',
+              description: 'Optional: Specific timeline ID. If omitted, returns the latest timeline.',
+            },
+          },
+          required: ['buildId'],
+        },
+      },
+      handler: async (args: unknown) => {
+        const typedArgs = args as { buildId: number; timelineId?: string };
+        const result = await client.getBuildTimeline(
+          typedArgs.buildId,
+          typedArgs.timelineId
+        );
+
+        if (!result.success) {
+          return formatErrorResponse(result.error);
+        }
+
+        // Format the timeline data for better readability
+        const formattedTimeline = {
+          timeline: {
+            id: result.data.id,
+            changeId: result.data.changeId,
+            lastChangedBy: result.data.lastChangedBy,
+            lastChangedOn: result.data.lastChangedOn,
+            recordCount: result.data.records?.length || 0,
+          },
+          jobs: result.data.records
+            ?.filter(r => r.type === 'Job')
+            .map(job => ({
+              name: job.name,
+              workerName: job.workerName,
+              startTime: job.startTime,
+              finishTime: job.finishTime,
+              state: job.state,
+              result: job.result,
+              percentComplete: job.percentComplete,
+              id: job.id,
+            })),
+          tasks: result.data.records
+            ?.filter(r => r.type === 'Task')
+            .map(task => ({
+              name: task.name,
+              startTime: task.startTime,
+              finishTime: task.finishTime,
+              state: task.state,
+              result: task.result,
+              percentComplete: task.percentComplete,
+              parentId: task.parentId,
+              id: task.id,
+            })),
+          summary: {
+            totalRecords: result.data.records?.length || 0,
+            jobs: result.data.records?.filter(r => r.type === 'Job').length || 0,
+            tasks: result.data.records?.filter(r => r.type === 'Task').length || 0,
+            phases: result.data.records?.filter(r => r.type === 'Phase').length || 0,
+            stages: result.data.records?.filter(r => r.type === 'Stage').length || 0,
+          },
+        };
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(formattedTimeline, null, 2),
+            },
+          ],
+        };
+      },
+    },
+
+    build_list: {
+      tool: {
+        name: 'build_list',
+        description: 'List builds with optional filtering by pipeline name, status, result, or branch. Supports pagination for large result sets.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            limit: {
+              type: 'number',
+              description: 'Maximum number of builds to return per page (default: 50, max: 200)',
+              default: 50,
               maximum: 200,
+            },
+            continuationToken: {
+              type: 'string',
+              description: 'Token from previous response to get next page of results',
+            },
+            definitionNameFilter: {
+              type: 'string',
+              description: 'Filter by pipeline/definition name (partial match supported, e.g., "preflight" matches any definition containing "preflight"). Wildcards (*) are added automatically unless already present.',
             },
             definitionId: {
               type: 'number',
-              description: 'Filter by specific pipeline/definition ID. Use list_pipelines to find available pipeline IDs.',
+              description: 'Filter by exact pipeline/definition ID',
             },
-            requestedFor: {
+            status: {
               type: 'string',
-              description: 'Filter by user who requested the build. Accepts email address or display name. Case-insensitive partial match.',
+              enum: ['None', 'InProgress', 'Completed', 'Cancelling', 'Postponed', 'NotStarted', 'All'],
+              description: 'Filter by build status',
             },
-            sinceHours: {
-              type: 'number',
-              description: 'Filter builds from the last N hours (default: 24). Useful for recent activity monitoring.',
-              minimum: 1,
+            result: {
+              type: 'string',
+              enum: ['None', 'Succeeded', 'PartiallySucceeded', 'Failed', 'Canceled'],
+              description: 'Filter by build result',
             },
             branchName: {
               type: 'string',
-              description: 'Filter by source branch name (e.g., "refs/heads/main" or just "main"). Supports partial matching.',
-            },
-            tags: {
-              type: 'array',
-              items: { type: 'string' },
-              description: 'Filter by build tags. Returns builds that have ALL specified tags.',
-            },
-            reason: {
-              type: 'string',
-              enum: ['all', 'manual', 'individualCI', 'batchedCI', 'schedule', 'pullRequest'],
-              description: 'Filter by build trigger reason. Useful to separate CI builds from manual/PR builds.',
-            },
-            queues: {
-              type: 'array',
-              items: { type: 'number' },
-              description: 'Filter by agent queue IDs. Use list_project_queues to find queue IDs.',
+              description: 'Filter by source branch (e.g., "refs/heads/main")',
             },
           },
           required: [],
@@ -66,271 +133,69 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
       },
       handler: async (args: unknown) => {
         const typedArgs = args as {
+          limit?: number;
+          continuationToken?: string;
+          definitionNameFilter?: string;
+          definitionId?: number;
           status?: string;
           result?: string;
-          top?: number;
-          definitionId?: number;
-          requestedFor?: string;
-          sinceHours?: number;
           branchName?: string;
-          tags?: string[];
-          reason?: string;
-          queues?: number[];
-        };
-        // Build filter based on arguments
-        const filter: BuildFilter = {
-          top: typedArgs.top || 20,
         };
 
-        // Handle status filter
-        if (typedArgs.status && typedArgs.status !== 'all') {
-          const statusMap: { [key: string]: BuildStatus } = {
-            inProgress: BuildStatus.InProgress,
-            completed: BuildStatus.Completed,
-            notStarted: BuildStatus.NotStarted,
-          };
-          filter.statusFilter = statusMap[typedArgs.status];
+        // Map string status/result to enums
+        let statusFilter: BuildInterfaces.BuildStatus | undefined;
+        if (typedArgs.status) {
+          statusFilter = BuildInterfaces.BuildStatus[typedArgs.status as keyof typeof BuildInterfaces.BuildStatus];
         }
 
-        // Handle result filter
-        if (typedArgs.result && typedArgs.result !== 'all') {
-          const resultMap: { [key: string]: BuildResult } = {
-            succeeded: BuildResult.Succeeded,
-            failed: BuildResult.Failed,
-            canceled: BuildResult.Canceled,
-            partiallySucceeded: BuildResult.PartiallySucceeded,
-          };
-          filter.resultFilter = resultMap[typedArgs.result];
+        let resultFilter: BuildInterfaces.BuildResult | undefined;
+        if (typedArgs.result) {
+          resultFilter = BuildInterfaces.BuildResult[typedArgs.result as keyof typeof BuildInterfaces.BuildResult];
         }
 
-        // Handle time filter
-        if (typedArgs.sinceHours) {
-          filter.minTime = new Date(Date.now() - typedArgs.sinceHours * 60 * 60 * 1000);
-        } else {
-          // Default to last 24 hours
-          filter.minTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        }
-
-        // Handle other filters
-        if (typedArgs.definitionId) {
-          filter.definitions = [typedArgs.definitionId];
-        }
-        if (typedArgs.requestedFor) {
-          filter.requestedFor = typedArgs.requestedFor;
-        }
-        if (typedArgs.branchName) {
-          filter.branchName = typedArgs.branchName;
-        }
-        if (typedArgs.tags && typedArgs.tags.length > 0) {
-          filter.tagFilters = typedArgs.tags;
-        }
-        if (typedArgs.reason && typedArgs.reason !== 'all') {
-          const reasonMap: { [key: string]: BuildReason } = {
-            manual: BuildReason.Manual,
-            individualCI: BuildReason.IndividualCI,
-            batchedCI: BuildReason.BatchedCI,
-            schedule: BuildReason.Schedule,
-            pullRequest: BuildReason.PullRequest,
-          };
-          filter.reasonFilter = reasonMap[typedArgs.reason];
-        }
-        if (typedArgs.queues && typedArgs.queues.length > 0) {
-          filter.queues = typedArgs.queues;
-        }
-
-        const result = await client.getBuilds(filter);
+        const result = await client.getBuilds({
+          definitionIds: typedArgs.definitionId ? [typedArgs.definitionId] : undefined,
+          definitionNameFilter: typedArgs.definitionNameFilter,
+          statusFilter,
+          resultFilter,
+          branchName: typedArgs.branchName,
+          top: typedArgs.limit || 50,
+          continuationToken: typedArgs.continuationToken,
+        });
 
         if (!result.success) {
           return formatErrorResponse(result.error);
         }
 
-        // Format the response with summary
-        const builds = result.data;
-        const summary = {
-          count: builds.length,
-          inProgress: builds.filter(b => b.status === 'InProgress').length,
-          succeeded: builds.filter(b => b.result === 'Succeeded').length,
-          failed: builds.filter(b => b.result === 'Failed').length,
-        };
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  summary,
-                  builds: builds.map(b => ({
-                    id: b.id,
-                    buildNumber: b.buildNumber,
-                    status: b.status,
-                    result: b.result,
-                    queueTime: b.queueTime,
-                    startTime: b.startTime,
-                    finishTime: b.finishTime,
-                    requestedFor: b.requestedFor.displayName,
-                    definition: b.definition.name,
-                    sourceBranch: b.sourceBranch,
-                  })),
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
-      },
-    },
-
-    get_build_details: {
-      tool: {
-        name: 'get_build_details',
-        description: 'Get comprehensive build details including timeline and changes. Returns full build metadata, execution stages/tasks, and associated commits. Use for debugging failed builds.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            buildId: {
-              type: 'number',
-              description: 'The build ID to get details for. Find build IDs using list_builds.',
-            },
-            includeTimeline: {
-              type: 'boolean',
-              description: 'Include build timeline showing stages and tasks with error/warning counts (default: true). Essential for debugging failures.',
-            },
-            includeChanges: {
-              type: 'boolean',
-              description: 'Include source changes (commits) that triggered the build (default: true). Shows up to 10 recent commits.',
-            },
+        // Format the response with pagination info
+        const builds = result.data.map(build => ({
+          id: build.id,
+          buildNumber: build.buildNumber,
+          definition: {
+            id: build.definition?.id,
+            name: build.definition?.name,
           },
-          required: ['buildId'],
-        },
-      },
-      handler: async (args: unknown) => {
-        const typedArgs = args as {
-          buildId: number;
-          includeTimeline?: boolean;
-          includeChanges?: boolean;
+          status: build.status,
+          result: build.result,
+          reason: build.reason,
+          startTime: build.startTime,
+          finishTime: build.finishTime,
+          sourceBranch: build.sourceBranch,
+          sourceVersion: build.sourceVersion,
+          requestedBy: build.requestedBy?.displayName,
+          requestedFor: build.requestedFor?.displayName,
+          uri: build.uri,
+        }));
+
+        const response = {
+          builds,
+          continuationToken: result.data.continuationToken,
+          hasMore: !!result.data.continuationToken,
+          pageInfo: {
+            returned: builds.length,
+            requested: typedArgs.limit || 50,
+          },
         };
-        const includeTimeline = typedArgs.includeTimeline !== false;
-        const includeChanges = typedArgs.includeChanges !== false;
-
-        // Get build details
-        const buildResult = await client.getBuild(typedArgs.buildId);
-        if (!buildResult.success) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(buildResult.error, null, 2),
-              },
-            ],
-          };
-        }
-
-        interface BuildDetailsResponse {
-          build: typeof buildResult.data;
-          timeline?: {
-            summary: {
-              totalRecords: number;
-              failedRecords: number;
-              warningCount: number;
-              errorCount: number;
-            };
-            stages: Array<{
-              name: string;
-              state: string | undefined;
-              result: string | undefined;
-              startTime?: Date;
-              finishTime?: Date;
-              duration?: string;
-              tasks: Array<{
-                name: string;
-                state: string | undefined;
-                result: string | undefined;
-                startTime?: Date;
-                finishTime?: Date;
-                duration?: string;
-                errorCount?: number;
-                warningCount?: number;
-                logId?: number;
-              }>;
-            }>;
-          };
-          changes?: Array<{
-            id: string;
-            message: string | null;
-            author: { displayName?: string; uniqueName?: string };
-            timestamp: Date;
-            location: string | null;
-          }>;
-        }
-        
-        const response: BuildDetailsResponse = {
-          build: buildResult.data,
-        };
-
-        // Get timeline if requested
-        if (includeTimeline) {
-          const timelineResult = await client.getBuildTimeline(typedArgs.buildId);
-          if (timelineResult.success) {
-            // Group timeline records by parent for better readability
-            const rootRecords = timelineResult.data.filter(r => !r.parentId);
-            const childrenByParent = timelineResult.data.reduce((acc, r) => {
-              if (r.parentId) {
-                if (!acc[r.parentId]) acc[r.parentId] = [];
-                acc[r.parentId].push(r);
-              }
-              return acc;
-            }, {} as Record<string, typeof timelineResult.data>);
-
-            response.timeline = {
-              summary: {
-                totalRecords: timelineResult.data.length,
-                failedRecords: timelineResult.data.filter(r => r.result === '2').length,
-                warningCount: timelineResult.data.reduce((sum, r) => sum + r.warningCount, 0),
-                errorCount: timelineResult.data.reduce((sum, r) => sum + r.errorCount, 0),
-              },
-              stages: rootRecords.map(stage => ({
-                name: stage.name,
-                state: stage.state,
-                result: stage.result,
-                startTime: stage.startTime,
-                finishTime: stage.finishTime,
-                errorCount: stage.errorCount,
-                warningCount: stage.warningCount,
-                tasks: (childrenByParent[stage.id] || []).map(task => ({
-                  name: task.name,
-                  state: task.state,
-                  result: task.result,
-                  startTime: task.startTime,
-                  finishTime: task.finishTime,
-                  errorCount: task.errorCount,
-                  warningCount: task.warningCount,
-                  logId: task.log?.id,
-                })),
-              })),
-            };
-          }
-        }
-
-        // Get changes if requested
-        if (includeChanges) {
-          const changesResult = await client.getBuildChanges(typedArgs.buildId, 10, true);
-          if (changesResult.success) {
-            response.changes = changesResult.data
-              .filter(change => change.id !== undefined && change.timestamp !== undefined)
-              .map(change => ({
-                id: change.id!,
-                message: change.message || null,
-                author: {
-                  displayName: change.author?.displayName,
-                  uniqueName: change.author?.uniqueName,
-                },
-                timestamp: change.timestamp!,
-                location: change.location || null,
-              }));
-          }
-        }
 
         return {
           content: [
@@ -343,291 +208,75 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
       },
     },
 
-    queue_build: {
+    build_list_definitions: {
       tool: {
-        name: 'queue_build',
-        description: 'Queue a new build with optional parameters. Triggers pipeline execution and returns build ID for tracking. Supports branch selection, priority, and custom parameters.',
+        name: 'build_list_definitions',
+        description: 'List build pipeline definitions with optional name filtering. Useful for finding pipeline IDs.',
         inputSchema: {
           type: 'object',
           properties: {
-            definitionId: {
+            limit: {
               type: 'number',
-              description: 'Pipeline/definition ID to queue. Use list_pipelines to find available pipeline IDs.',
+              description: 'Maximum number of definitions to return per page (default: 50, max: 200)',
+              default: 50,
+              maximum: 200,
             },
-            sourceBranch: {
+            continuationToken: {
               type: 'string',
-              description: 'Branch to build (e.g., "refs/heads/main" or "refs/heads/feature/xyz"). Defaults to pipeline\'s default branch.',
+              description: 'Token from previous response to get next page of results',
             },
-            parameters: {
-              type: 'object',
-              description: 'Build parameters as key-value pairs. Pipeline-specific variables that override defaults.',
-              additionalProperties: {
-                type: 'string',
-              },
-            },
-            priority: {
+            nameFilter: {
               type: 'string',
-              enum: ['low', 'belowNormal', 'normal', 'aboveNormal', 'high'],
-              description: 'Build priority (default: normal). Higher priority builds start sooner when agents are busy.',
-            },
-            reason: {
-              type: 'string',
-              enum: ['manual', 'individualCI', 'batchedCI', 'schedule', 'validateShelveset', 'checkInShelveset', 'pullRequest', 'buildCompletion', 'resourceTrigger'],
-              description: 'Reason for the build (default: manual). Usually set automatically but can be overridden for tracking.',
+              description: 'Filter by definition name (partial match supported, e.g., "preflight" matches any definition containing "preflight"). Wildcards (*) are added automatically unless already present.',
             },
           },
-          required: ['definitionId'],
+          required: [],
         },
       },
       handler: async (args: unknown) => {
         const typedArgs = args as {
-          definitionId: number;
-          sourceBranch?: string;
-          parameters?: Record<string, string>;
-          priority?: 'low' | 'belowNormal' | 'normal' | 'aboveNormal' | 'high';
-          reason?: string;
-        };
-        const options: QueueBuildOptions = {
-          definition: { id: typedArgs.definitionId },
-          sourceBranch: typedArgs.sourceBranch,
-          priority: typedArgs.priority,
+          limit?: number;
+          continuationToken?: string;
+          nameFilter?: string;
         };
 
-        // Handle parameters
-        if (typedArgs.parameters) {
-          options.parameters = JSON.stringify(typedArgs.parameters);
-        }
-
-        // Handle reason
-        if (typedArgs.reason) {
-          const reasonMap: { [key: string]: BuildReason } = {
-            manual: BuildReason.Manual,
-            individualCI: BuildReason.IndividualCI,
-            batchedCI: BuildReason.BatchedCI,
-            schedule: BuildReason.Schedule,
-            validateShelveset: BuildReason.ValidateShelveset,
-            checkInShelveset: BuildReason.CheckInShelveset,
-            pullRequest: BuildReason.PullRequest,
-            buildCompletion: BuildReason.BuildCompletion,
-            resourceTrigger: BuildReason.ResourceTrigger,
-          };
-          options.reason = reasonMap[typedArgs.reason] || BuildReason.Manual;
-        }
-
-        const result = await client.queueBuild(options);
+        const result = await client.getDefinitions({
+          nameFilter: typedArgs.nameFilter,
+          top: typedArgs.limit || 50,
+          continuationToken: typedArgs.continuationToken,
+        });
 
         if (!result.success) {
           return formatErrorResponse(result.error);
         }
 
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  message: 'Build queued successfully',
-                  build: {
-                    id: result.data.id,
-                    buildNumber: result.data.buildNumber,
-                    status: result.data.status,
-                    queueTime: result.data.queueTime,
-                    url: `https://dev.azure.com/${client.getConfig().organization}/${client.getConfig().project}/_build/results?buildId=${result.data.id}`,
-                  },
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
-      },
-    },
+        // Format the response with pagination info
+        const definitions = result.data.map(def => ({
+          id: def.id,
+          name: def.name,
+          path: def.path,
+          type: def.type,
+          queueStatus: def.queueStatus,
+          revision: def.revision,
+          createdDate: def.createdDate,
+          project: def.project?.name,
+        }));
 
-    get_build_logs: {
-      tool: {
-        name: 'get_build_logs',
-        description: 'Get build logs for troubleshooting. Lists all available logs or retrieves specific log content. Use to diagnose build failures and view detailed execution output.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            buildId: {
-              type: 'number',
-              description: 'The build ID to get logs for. Find build IDs using list_builds.',
-            },
-            logId: {
-              type: 'number',
-              description: 'Specific log ID to retrieve content (optional). Without this, lists all available logs.',
-            },
-            startLine: {
-              type: 'number',
-              description: 'Starting line number (for specific log). Use with logId to get a subset of lines.',
-            },
-            endLine: {
-              type: 'number',
-              description: 'Ending line number (for specific log). Use with logId to get a subset of lines.',
-            },
+        const response = {
+          definitions,
+          continuationToken: result.data.continuationToken,
+          hasMore: !!result.data.continuationToken,
+          pageInfo: {
+            returned: definitions.length,
+            requested: typedArgs.limit || 50,
           },
-          required: ['buildId'],
-        },
-      },
-      handler: async (args: unknown) => {
-        const typedArgs = args as {
-          buildId: number;
-          logId?: number;
-          startLine?: number;
-          endLine?: number;
         };
-        
-        // Debug: Check what we received
-        console.log('get_build_logs args:', JSON.stringify(args));
-        console.log('typedArgs.buildId:', typedArgs.buildId, 'type:', typeof typedArgs.buildId);
-        
-        // If specific log requested, get its content
-        if (typedArgs.logId) {
-          const linesResult = await client.getBuildLogLines(
-            typedArgs.buildId,
-            typedArgs.logId,
-            typedArgs.startLine,
-            typedArgs.endLine,
-          );
-
-          if (!linesResult.success) {
-            return {
-              content: [
-                {
-                  type: 'text',
-                  text: JSON.stringify(linesResult.error, null, 2),
-                },
-              ],
-            };
-          }
-
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(
-                  {
-                    buildId: typedArgs.buildId,
-                    logId: typedArgs.logId,
-                    lineCount: linesResult.data.length,
-                    lines: linesResult.data,
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-          };
-        }
-
-        // Otherwise, list all logs
-        const logsResult = await client.getBuildLogs(typedArgs.buildId);
-
-        if (!logsResult.success) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(logsResult.error, null, 2),
-              },
-            ],
-          };
-        }
 
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(
-                {
-                  buildId: typedArgs.buildId,
-                  logCount: logsResult.data.length,
-                  logs: logsResult.data.map(log => ({
-                    id: log.id,
-                    type: log.type,
-                    created: log.createdOn,
-                    lastChanged: log.lastChangedOn,
-                    lineCount: log.lineCount,
-                    url: log.url,
-                  })),
-                  hint: 'Use logId parameter to retrieve specific log content',
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
-      },
-    },
-
-    manage_build: {
-      tool: {
-        name: 'manage_build',
-        description: 'Cancel running builds or manage build retention. Use "cancel" to stop in-progress builds, "retain" to keep builds indefinitely, "unretain" to allow automatic cleanup.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            buildId: {
-              type: 'number',
-              description: 'The build ID to manage. Find build IDs using list_builds.',
-            },
-            action: {
-              type: 'string',
-              enum: ['cancel', 'retain', 'unretain'],
-              description: 'Action to perform: "cancel" (stop running build), "retain" (keep forever), "unretain" (allow deletion).',
-            },
-          },
-          required: ['buildId', 'action'],
-        },
-      },
-      handler: async (args: unknown) => {
-        const typedArgs = args as { buildId: number; action: string };
-        let updateOptions: BuildUpdateOptions = {};
-
-        switch (typedArgs.action) {
-          case 'cancel':
-            updateOptions.status = BuildStatus.Cancelling;
-            break;
-          case 'retain':
-            updateOptions.keepForever = true;
-            break;
-          case 'unretain':
-            updateOptions.keepForever = false;
-            break;
-          default:
-            return formatErrorResponse({
-              type: 'api_error',
-              message: `Invalid action: ${typedArgs.action}. Valid actions are: cancel, retain, unretain`,
-            });
-        }
-
-        const result = await client.updateBuild(typedArgs.buildId, updateOptions);
-
-        if (!result.success) {
-          return formatErrorResponse(result.error);
-        }
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  message: `Build ${typedArgs.action} action completed successfully`,
-                  build: {
-                    id: result.data.id,
-                    buildNumber: result.data.buildNumber,
-                    status: result.data.status,
-                    result: result.data.result,
-                    keepForever: updateOptions.keepForever,
-                  },
-                },
-                null,
-                2,
-              ),
+              text: JSON.stringify(response, null, 2),
             },
           ],
         };

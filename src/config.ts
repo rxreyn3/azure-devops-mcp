@@ -2,7 +2,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 // Load environment variables only in Node.js (Bun loads .env automatically)
-if (typeof Bun === 'undefined') {
+if (!process.versions?.bun) {
   const dotenv = await import('dotenv');
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);

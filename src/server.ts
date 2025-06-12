@@ -20,7 +20,7 @@ export class AzureDevOpsMCPServer {
     this.taskAgentClient = new TaskAgentClient(config);
     this.buildClient = new BuildClient(config);
     
-    // Initialize tools registry with all tools
+    // Initialize tools registry with all clients
     this.toolRegistry = createToolRegistry(this.taskAgentClient, this.buildClient);
     
     this.server = new Server(
@@ -60,10 +60,6 @@ export class AzureDevOpsMCPServer {
 
   async start(): Promise<void> {
     const transport = new StdioServerTransport();
-    
-    // Initialize both clients
-    await this.taskAgentClient.initialize();
-    await this.buildClient.initialize();
     
     await this.server.connect(transport);
     console.error('Azure DevOps MCP Server started');

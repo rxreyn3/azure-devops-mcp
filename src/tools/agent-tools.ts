@@ -4,10 +4,10 @@ import { formatErrorResponse } from '../utils/formatters.js';
 
 export function createAgentTools(client: TaskAgentClient): Record<string, ToolDefinition> {
   return {
-    ado_health_check: {
+    project_health_check: {
       tool: {
-        name: 'ado_health_check',
-        description: 'Check connection to Azure DevOps and verify permissions. Use this to test your PAT token and ensure the server is properly configured.',
+        name: 'project_health_check',
+        description: 'Check connection to Azure DevOps and verify permissions. Requires project-scoped PAT with Agent Pools (read) permission.',
         inputSchema: {
           type: 'object',
           properties: {},
@@ -33,10 +33,10 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
       },
     },
 
-    list_project_queues: {
+    project_list_queues: {
       tool: {
-        name: 'list_project_queues',
-        description: 'List all agent queues available in the project. Returns queue IDs, names, and pool information. Queues are project-scoped views of agent pools.',
+        name: 'project_list_queues',
+        description: 'List all agent queues available in the project. Returns queue IDs, names, and pool information. Requires project-scoped PAT with Agent Pools (read) permission.',
         inputSchema: {
           type: 'object',
           properties: {},
@@ -44,7 +44,7 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
         },
       },
       handler: async () => {
-        const result = await client.listProjectQueues();
+        const result = await client.getQueues();
 
         if (!result.success) {
           return formatErrorResponse(result.error);
@@ -68,16 +68,16 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
       },
     },
 
-    get_queue_details: {
+    project_get_queue: {
       tool: {
-        name: 'get_queue_details',
-        description: 'Get detailed information about a specific queue including pool details and agent count. Provides more context than list_project_queues.',
+        name: 'project_get_queue',
+        description: 'Get detailed information about a specific queue including pool details and agent count. Requires project-scoped PAT with Agent Pools (read) permission.',
         inputSchema: {
           type: 'object',
           properties: {
             queueIdOrName: {
               type: 'string',
-              description: 'Queue ID (number) or name. Queue IDs are more reliable than names. Find IDs using list_project_queues.',
+              description: 'Queue ID (number) or name. Queue IDs are more reliable than names. Find IDs using project_list_queues.',
             },
           },
           required: ['queueIdOrName'],
@@ -86,9 +86,9 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
       handler: async (args: unknown) => {
         const typedArgs = args as { queueIdOrName: string };
         const id = parseInt(typedArgs.queueIdOrName, 10);
-        const result = await client.getQueueDetails(
-          isNaN(id) ? typedArgs.queueIdOrName : id,
-        );
+        const result = await client.getQueue({
+          queueIdOrName: isNaN(id) ? typedArgs.queueIdOrName : id,
+        });
 
         if (!result.success) {
           return formatErrorResponse(result.error);
@@ -105,10 +105,10 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
       },
     },
 
-    find_agent: {
+    org_find_agent: {
       tool: {
-        name: 'find_agent',
-        description: 'Find which queue/pool an agent belongs to (requires org-level permissions). Searches across all pools in the organization. May fail with project-scoped PAT.',
+        name: 'org_find_agent',
+        description: 'Find which queue/pool an agent belongs to. Searches across all pools in the organization. Requires PAT with organization-level Agent Pools (read) permission.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -139,51 +139,10 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
       },
     },
 
-    list_queue_agents: {
+    org_list_agents: {
       tool: {
-        name: 'list_queue_agents',
-        description: 'List all agents in a specific queue (requires org-level permissions). Shows agent status, version, and capabilities. May fail with project-scoped PAT.',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            queueId: {
-              type: 'number',
-              description: 'Queue ID (not poolId). Must use the queue ID from list_project_queues, not the underlying pool ID.',
-            },
-          },
-          required: ['queueId'],
-        },
-      },
-      handler: async (args: unknown) => {
-        const typedArgs = args as { queueId: number };
-        const result = await client.listQueueAgents(typedArgs.queueId);
-
-        if (!result.success) {
-          return formatErrorResponse(result.error);
-        }
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(
-                {
-                  agents: result.data,
-                  count: result.data.length,
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
-      },
-    },
-
-    list_agents: {
-      tool: {
-        name: 'list_agents',
-        description: 'List agents available in your project\'s pools with optional filtering. Shows agent status, version, and basic info. Works with project-scoped permissions.',
+        name: 'org_list_agents',
+        description: 'List agents from project pools with optional filtering. Shows agent status, version, and basic info. Requires PAT with organization-level Agent Pools (read) permission to access agent details.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -200,6 +159,16 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
               description: 'Only show online agents (default: false). Online agents are ready to run builds immediately.',
               default: false,
             },
+            limit: {
+              type: 'number',
+              description: 'Maximum number of agents to return per page (default: 50, max: 200)',
+              default: 50,
+              maximum: 200,
+            },
+            continuationToken: {
+              type: 'string',
+              description: 'Token from previous response to get next page of results',
+            },
           },
           required: [],
         },
@@ -209,17 +178,19 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
           nameFilter?: string;
           poolNameFilter?: string;
           onlyOnline?: boolean;
+          limit?: number;
+          continuationToken?: string;
         };
         
-        const result = await client.listProjectAgents(typedArgs);
+        const result = await client.getAgents(typedArgs);
 
         if (!result.success) {
           return formatErrorResponse(result.error);
         }
 
         // Group agents by pool for better readability
-        const agentsByPool: { [poolName: string]: typeof result.data } = {};
-        for (const agent of result.data) {
+        const agentsByPool: { [poolName: string]: typeof result.data.agents } = {};
+        for (const agent of result.data.agents) {
           if (!agentsByPool[agent.poolName]) {
             agentsByPool[agent.poolName] = [];
           }
@@ -227,7 +198,7 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
         }
 
         const summary = {
-          agents: result.data.map(a => ({
+          agents: result.data.agents.map(a => ({
             name: a.name,
             pool: a.poolName, // User-friendly "pool" terminology
             status: a.status,
@@ -236,10 +207,16 @@ export function createAgentTools(client: TaskAgentClient): Record<string, ToolDe
             capabilities: [] // Placeholder - could be extended later
           })),
           summary: {
-            total: result.data.length,
-            online: result.data.filter(a => a.status === 'Online').length,
-            offline: result.data.filter(a => a.status === 'Offline').length,
+            total: result.data.agents.length,
+            online: result.data.agents.filter(a => a.status === 'Online').length,
+            offline: result.data.agents.filter(a => a.status === 'Offline').length,
             pools: Object.keys(agentsByPool).sort()
+          },
+          continuationToken: result.data.continuationToken,
+          hasMore: result.data.hasMore,
+          pageInfo: {
+            returned: result.data.agents.length,
+            requested: typedArgs.limit || 50
           }
         };
 

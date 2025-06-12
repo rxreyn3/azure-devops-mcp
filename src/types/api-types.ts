@@ -26,8 +26,15 @@ export interface ListAgentsOptions {
   nameFilter?: string;
   poolNameFilter?: string;
   onlyOnline?: boolean;
+  limit?: number;
+  continuationToken?: string;
 }
 
+export interface PagedAgentsResult {
+  agents: ProjectAgentInfo[];
+  continuationToken?: string;
+  hasMore: boolean;
+}
 
 export interface PermissionError {
   type: 'permission';
@@ -41,55 +48,3 @@ export type ApiError = PermissionError | { type: 'not_found' | 'api_error'; mess
 export type ApiResult<T> =
   | { success: true; data: T }
   | { success: false; error: ApiError };
-
-// Build-related types
-export interface BuildInfo {
-  id: number;
-  buildNumber: string;
-  status: string;
-  result?: string;
-  queueTime: Date;
-  startTime?: Date;
-  finishTime?: Date;
-  sourceBranch: string;
-  sourceVersion: string;
-  requestedFor: {
-    displayName: string;
-    uniqueName: string;
-  };
-  definition: {
-    id: number;
-    name: string;
-  };
-}
-
-export interface PipelineInfo {
-  id: number;
-  name: string;
-  path: string;
-  type: 'build' | 'yaml';
-  queueStatus?: 'enabled' | 'paused' | 'disabled';
-  latestBuild?: {
-    id: number;
-    buildNumber: string;
-    status: string;
-    result?: string;
-  };
-}
-
-export interface BuildTimelineRecord {
-  id: string;
-  parentId?: string;
-  type: string;
-  name: string;
-  startTime?: Date;
-  finishTime?: Date;
-  state: string;
-  result?: string;
-  errorCount: number;
-  warningCount: number;
-  log?: {
-    id?: number;
-    type?: string;
-  };
-}

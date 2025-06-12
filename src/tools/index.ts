@@ -3,7 +3,6 @@ import { TaskAgentClient } from '../clients/task-agent-client.js';
 import { BuildClient } from '../clients/build-client.js';
 import { createAgentTools } from './agent-tools.js';
 import { createBuildTools } from './build-tools.js';
-import { createPipelineTools } from './pipeline-tools.js';
 
 export interface ToolRegistry {
   tools: Tool[];
@@ -14,16 +13,14 @@ export function createToolRegistry(
   taskAgentClient: TaskAgentClient,
   buildClient: BuildClient
 ): ToolRegistry {
-  // Create all tool definitions
+  // Create tool definitions
   const agentTools = createAgentTools(taskAgentClient);
   const buildTools = createBuildTools(buildClient);
-  const pipelineTools = createPipelineTools(buildClient);
 
   // Combine all tools
   const allTools = {
     ...agentTools,
     ...buildTools,
-    ...pipelineTools,
   };
 
   // Extract tools and handlers

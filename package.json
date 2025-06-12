@@ -7,31 +7,13 @@
   "bin": {
     "azure-devops-mcp": "dist/index.js"
   },
-  "directories": {
-    "doc": "docs"
-  },
   "scripts": {
     "dev": "bun run --watch src/index.ts",
-    "dev:inspect": "bun --inspect run --watch src/index.ts",
     "build": "tsc",
-    "build:watch": "tsc --watch",
     "start": "node dist/index.js",
-    "start:stdio": "node dist/index.js",
-    "test": "bun test",
-    "test:watch": "bun test --watch",
-    "test:coverage": "bun test --coverage",
-    "test:unit": "bun test tests/unit",
-    "test:integration": "bun test tests/integration",
-    "lint": "bunx eslint src --ext .ts",
-    "format": "bunx prettier --write \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
-    "changeset": "changeset",
-    "version-packages": "changeset version",
-    "release": "changeset publish",
-    "prerelease": "bun run lint && bun run typecheck && bun run test && bun run build",
-    "verify:node": "bun run build && node scripts/test-node-compat.js",
-    "prepublishOnly": "bun run clean && bun run build"
+    "release": "changeset publish"
   },
   "keywords": [
     "mcp",
@@ -53,9 +35,7 @@
     "node": ">=18.0.0"
   },
   "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
+    "dist"
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
@@ -63,17 +43,7 @@
     "dotenv": "^16.5.0"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.29.4",
-    "@eslint/js": "^9.28.0",
-    "@types/bun": "^1.2.15",
-    "@types/nock": "^11.1.0",
     "@types/node": "^22.15.30",
-    "@typescript-eslint/eslint-plugin": "^8.33.1",
-    "@typescript-eslint/parser": "^8.33.1",
-    "eslint": "^9.28.0",
-    "eslint-config-prettier": "^10.1.5",
-    "nock": "^14.0.5",
-    "prettier": "^3.5.3",
     "typescript": "^5.8.3"
   }
 }

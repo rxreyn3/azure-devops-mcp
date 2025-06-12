@@ -1,29 +1,24 @@
 import { ITaskAgentApi } from 'azure-devops-node-api/TaskAgentApi.js';
 import { TaskAgentQueue, TaskAgent, TaskAgentStatus, TaskAgentQueueActionFilter } from 'azure-devops-node-api/interfaces/TaskAgentInterfaces.js';
 import { AzureDevOpsBaseClient } from './ado-base-client.js';
-import { ApiResult, QueueInfo, AgentInfo, ProjectAgentInfo, ListAgentsOptions } from '../types/index.js';
+import { ApiResult, QueueInfo, AgentInfo, ProjectAgentInfo, ListAgentsOptions, PagedAgentsResult } from '../types/index.js';
 import { createNotFoundError, createPermissionError } from '../utils/error-handlers.js';
 import { safeStringCompare } from '../utils/validators.js';
 
 export class TaskAgentClient extends AzureDevOpsBaseClient {
   private taskAgentApi: ITaskAgentApi | null = null;
 
-  async initialize(): Promise<void> {
-    this.taskAgentApi = await this.connection.getTaskAgentApi();
-  }
-
-  private async ensureTaskAgentApi(): Promise<ITaskAgentApi> {
+  protected async ensureInitialized(): Promise<void> {
     if (!this.taskAgentApi) {
-      await this.initialize();
+      this.taskAgentApi = await this.connection.getTaskAgentApi();
     }
-    return this.taskAgentApi!;
   }
 
-  async listProjectQueues(): Promise<ApiResult<QueueInfo[]>> {
-    const api = await this.ensureTaskAgentApi();
+  async getQueues(): Promise<ApiResult<QueueInfo[]>> {
+    await this.ensureInitialized();
     
-    return this.handleApiCall('list project queues', async () => {
-      const queues = await api.getAgentQueues(this.config.project);
+    return this.handleApiCall('getQueues', async () => {
+      const queues = await this.taskAgentApi!.getAgentQueues(this.config.project);
       
       return queues
         .filter((q): q is Required<TaskAgentQueue> => 
@@ -39,21 +34,25 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
     });
   }
 
-  async getQueueDetails(queueIdOrName: string | number): Promise<ApiResult<QueueInfo>> {
-    const api = await this.ensureTaskAgentApi();
+  async getQueue(
+    options: {
+      queueIdOrName: string | number;
+    }
+  ): Promise<ApiResult<QueueInfo>> {
+    await this.ensureInitialized();
     
-    return this.handleApiCall('get queue details', async () => {
-      const queues = await api.getAgentQueues(this.config.project);
+    return this.handleApiCall('getQueue', async () => {
+      const queues = await this.taskAgentApi!.getAgentQueues(this.config.project);
       
       const queue = queues.find((q) => {
-        if (typeof queueIdOrName === 'number') {
-          return q.id === queueIdOrName;
+        if (typeof options.queueIdOrName === 'number') {
+          return q.id === options.queueIdOrName;
         }
-        return safeStringCompare(q.name, queueIdOrName, false);
+        return safeStringCompare(q.name, options.queueIdOrName, false);
       });
       
       if (!queue || !queue.id || !queue.name || !queue.pool) {
-        throw createNotFoundError('Queue', queueIdOrName.toString());
+        throw createNotFoundError('Queue', options.queueIdOrName.toString());
       }
       
       return {
@@ -67,25 +66,33 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
   }
 
   async findAgent(agentName: string): Promise<ApiResult<{ agent: AgentInfo; poolName: string; queueId?: number }[]>> {
-    const api = await this.ensureTaskAgentApi();
+    await this.ensureInitialized();
     
-    return this.handleApiCall('find agent', async () => {
+    return this.handleApiCall('findAgent', async () => {
       const foundAgents: { agent: AgentInfo; poolName: string; queueId?: number }[] = [];
       
       try {
-        const pools = await api.getAgentPools();
+        const pools = await this.taskAgentApi!.getAgentPools();
         
         for (const pool of pools) {
           if (!pool.id) continue;
           
           try {
-            const agents = await api.getAgents(pool.id, agentName);
+            const agents = await this.taskAgentApi!.getAgents(pool.id, agentName);
             
             for (const agent of agents) {
               if (!agent.id || !agent.name) continue;
               
               foundAgents.push({
-                agent: this.mapAgentInfo(agent),
+                agent: {
+                  id: agent.id!,
+                  name: agent.name!,
+                  status: agent.status !== undefined ? 
+                    (agent.status === TaskAgentStatus.Online ? 'Online' : 'Offline') : 'Unknown',
+                  enabled: agent.enabled ?? true,
+                  version: agent.version,
+                  osDescription: agent.oSDescription
+                },
                 poolName: pool.name || 'Unknown',
                 queueId: undefined
               });
@@ -103,7 +110,7 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
       }
       
       if (foundAgents.length === 0) {
-        const queuesResult = await this.listProjectQueues();
+        const queuesResult = await this.getQueues();
         if (queuesResult.success) {
           throw createNotFoundError(
             'Agent',
@@ -113,25 +120,37 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
       }
       
       return foundAgents;
-    });
+    }, true);
   }
 
-  async listQueueAgents(queueId: number): Promise<ApiResult<AgentInfo[]>> {
-    const api = await this.ensureTaskAgentApi();
+  async getAgentsByQueue(
+    options: {
+      queueId: number;
+    }
+  ): Promise<ApiResult<AgentInfo[]>> {
+    await this.ensureInitialized();
     
-    return this.handleApiCall('list queue agents', async () => {
-      const queueResult = await this.getQueueDetails(queueId);
+    return this.handleApiCall('getAgentsByQueue', async () => {
+      const queueResult = await this.getQueue({ queueIdOrName: options.queueId });
       if (!queueResult.success) {
-        throw createNotFoundError('Queue', queueId.toString());
+        throw createNotFoundError('Queue', options.queueId.toString());
       }
       
       const poolId = queueResult.data.poolId;
       
       try {
-        const agents = await api.getAgents(poolId);
+        const agents = await this.taskAgentApi!.getAgents(poolId);
         return agents
           .filter((a): a is Required<TaskAgent> => a.id !== undefined && a.name !== undefined)
-          .map(a => this.mapAgentInfo(a));
+          .map(a => ({
+            id: a.id!,
+            name: a.name!,
+            status: a.status !== undefined ? 
+              (a.status === TaskAgentStatus.Online ? 'Online' : 'Offline') : 'Unknown',
+            enabled: a.enabled ?? true,
+            version: a.version,
+            osDescription: a.oSDescription
+          }));
       } catch (error) {
         const errorObj = error as { statusCode?: number };
         if (errorObj.statusCode === 401 || errorObj.statusCode === 403) {
@@ -142,35 +161,17 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
         }
         throw error;
       }
-    });
+    }, true);
   }
 
-  private mapAgentInfo(agent: TaskAgent): AgentInfo {
-    return {
-      id: agent.id!,
-      name: agent.name!,
-      status: this.getAgentStatusString(agent.status),
-      enabled: agent.enabled ?? true,
-      version: agent.version,
-      osDescription: agent.oSDescription
-    };
-  }
-
-  private getAgentStatusString(status: TaskAgentStatus | undefined): string {
-    const statusMap: { [key: string]: string } = {
-      [TaskAgentStatus.Offline]: 'Offline',
-      [TaskAgentStatus.Online]: 'Online'
-    };
+  async getAgents(
+    options: ListAgentsOptions = {}
+  ): Promise<ApiResult<PagedAgentsResult>> {
+    await this.ensureInitialized();
     
-    return status !== undefined ? statusMap[status] || 'Unknown' : 'Unknown';
-  }
-
-  async listProjectAgents(options: ListAgentsOptions = {}): Promise<ApiResult<ProjectAgentInfo[]>> {
-    const api = await this.ensureTaskAgentApi();
-    
-    return this.handleApiCall('list project agents', async () => {
+    return this.handleApiCall('getAgents', async () => {
       // Step 1: Get all project queues (API requires exact match, so we filter later)
-      const allQueues = await api.getAgentQueues(
+      const allQueues = await this.taskAgentApi!.getAgentQueues(
         this.config.project,
         undefined, // Get all queues, we'll filter ourselves
         TaskAgentQueueActionFilter.Use
@@ -185,7 +186,11 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
       }
       
       if (!queues || queues.length === 0) {
-        return [];
+        return {
+          agents: [],
+          continuationToken: undefined,
+          hasMore: false
+        };
       }
 
       // Step 2: Collect agents from each queue's pool
@@ -196,7 +201,7 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
         if (!queue.id || !queue.name || !queue.pool?.id) continue;
         
         try {
-          const agents = await api.getAgents(queue.pool.id);
+          const agents = await this.taskAgentApi!.getAgents(queue.pool.id);
           
           for (const agent of agents) {
             if (!agent.id || !agent.name) continue;
@@ -215,7 +220,13 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
             // Use agent ID as key to avoid duplicates
             if (!agentMap.has(agent.id)) {
               agentMap.set(agent.id, {
-                ...this.mapAgentInfo(agent),
+                id: agent.id,
+                name: agent.name,
+                status: agent.status !== undefined ? 
+                  (agent.status === TaskAgentStatus.Online ? 'Online' : 'Offline') : 'Unknown',
+                enabled: agent.enabled ?? true,
+                version: agent.version,
+                osDescription: agent.oSDescription,
                 poolName: queue.pool.name || 'Unknown',
                 queueId: queue.id,
                 queueName: queue.name
@@ -239,7 +250,19 @@ export class TaskAgentClient extends AzureDevOpsBaseClient {
         console.warn(`Limited results: Could not access agents in ${inaccessiblePools.length} pool(s): ${inaccessiblePools.join(', ')}`);
       }
       
-      return agents;
-    });
+      // Apply pagination
+      const limit = options.limit || 250; // Default to returning all
+      const offset = options.continuationToken ? parseInt(options.continuationToken, 10) : 0;
+      
+      const paginatedAgents = agents.slice(offset, offset + limit);
+      const hasMore = offset + limit < agents.length;
+      const nextToken = hasMore ? String(offset + limit) : undefined;
+      
+      return {
+        agents: paginatedAgents,
+        continuationToken: nextToken,
+        hasMore
+      };
+    }, true);
   }
 }

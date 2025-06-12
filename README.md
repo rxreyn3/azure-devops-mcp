@@ -1,203 +1,228 @@
 # Azure DevOps MCP Server
 
-An MCP (Model Context Protocol) server that provides comprehensive Azure DevOps build and pipeline management capabilities within a project context. This server enables AI assistants to monitor builds, execute pipelines, troubleshoot failures, and manage build infrastructure.
+A Model Context Protocol (MCP) server for interacting with Azure DevOps agents and queues.
 
-**Developer**: Ryan Reynolds ([@rxreyn3](https://github.com/rxreyn3))
+## Authentication & Permissions
 
-## Features
+### Required PAT Permissions
 
-- **Project-scoped access**: Works within your project context
-- **Build operations**: Monitor, execute, and troubleshoot builds
-- **Pipeline management**: Discover and inspect build definitions
-- **Queue management**: List and inspect agent queues
-- **Agent discovery**: Find agents and their status (requires org permissions)
-- **Permission-aware**: Gracefully handles permission limitations with clear guidance
+When creating your Personal Access Token (PAT) in Azure DevOps, you must grant:
+- **Agent Pools (read)** - Required for agent management tools
+- **Build (read)** - Required for build timeline tools
 
-## Tool Selection Philosophy
+### Scope Requirements
 
-This MCP server provides a focused subset of Azure DevOps functionality optimized for daily build operations. We've prioritized tools based on:
+This server provides tools with different scope requirements:
 
-1. **Usage Frequency**: Analysis shows 80% of API calls focus on build monitoring and execution
-2. **Project Scope**: All tools work within project boundaries (except agent discovery)
-3. **Practical Value**: Each tool addresses specific pain points in build administration
+| Tool | Minimum Scope | Description |
+|------|--------------|-------------|
+| `project_*` tools | Project | Access project queues and basic information |
+| `org_*` tools | Organization | Access agent details (agents exist at org level) |
+| `build_*` tools | Project | Access build timelines and execution details |
 
-### Why These Tools?
+### Creating a PAT
 
-- **Build Monitoring**: `list_builds`, `get_build_details` - Cover 60% of daily operations
-- **Build Execution**: `queue_build` - Essential for CI/CD automation
-- **Troubleshooting**: `get_build_logs`, `get_build_timeline` - Critical for failure analysis
-- **Pipeline Discovery**: `list_pipelines`, `get_pipeline_config` - Helps users find and understand build definitions
-- **Build Management**: `manage_build` - Cancel stuck builds or retain important ones
-- **Health Monitoring**: `monitor_build_health` - Overview of build success rates and trends
+1. Go to Azure DevOps → User Settings → Personal Access Tokens
+2. Click "New Token"
+3. Select your organization
+4. Set expiration as needed
+5. **For full functionality**, select:
+   - Scope: **Organization** (not project-specific)
+   - Permissions: 
+     - **Agent Pools (read)** - For agent management tools
+     - **Build (read)** - For build timeline tools
 
-See [API Priorities Documentation](docs/ado-mcp-api-priorities.md) for detailed analysis.
+> **Note**: Project-scoped PATs will only work with `project_*` and `build_*` tools. The `org_*` tools require organization-level access because agents are managed at the organization level in Azure DevOps.
 
-## Installation
+## Installation & Usage
 
-```bash
-npm install -g @rxreyn3/azure-devops-mcp
-```
+This MCP server can be used with Windsurf, Claude Desktop, and Claude Code. All methods use `npx` to run the package directly without installation.
 
-## Configuration
+### Usage in Windsurf
 
-Create a `.env` file based on `.env.example`:
-
-```bash
-ADO_ORGANIZATION=https://dev.azure.com/yourorganization
-ADO_PROJECT=YourProjectName
-ADO_PAT=your_personal_access_token
-```
-
-### Required PAT Scopes
-
-- `vso.build` (read) - Required for queue access
-- `vso.agentpools` (read) - Optional but recommended for agent details
-
-## Usage with Claude Desktop
-
-Add to your Claude Desktop configuration:
+Add the following to your Windsurf settings at `~/.windsurf/settings.json`:
 
 ```json
 {
   "mcpServers": {
     "azure-devops": {
       "command": "npx",
-      "args": ["@rxreyn3/azure-devops-mcp"],
+      "args": ["-y", "@rxreyn3/azure-devops-mcp"],
       "env": {
-        "ADO_ORGANIZATION": "https://dev.azure.com/yourorg",
-        "ADO_PROJECT": "YourProject",
-        "ADO_PAT": "your_pat_token"
+        "AZURE_DEVOPS_ORG_URL": "https://dev.azure.com/your-organization",
+        "AZURE_DEVOPS_PROJECT": "your-project-name",
+        "AZURE_DEVOPS_PAT": "your-personal-access-token"
       }
     }
   }
 }
 ```
 
+### Usage in Claude Desktop
+
+Add the following to your Claude Desktop configuration:
+
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`  
+**Windows**: `%APPDATA%/Claude/claude_desktop_config.json`  
+**Linux**: `~/.config/Claude/claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "azure-devops": {
+      "command": "npx",
+      "args": ["-y", "@rxreyn3/azure-devops-mcp"],
+      "env": {
+        "AZURE_DEVOPS_ORG_URL": "https://dev.azure.com/your-organization",
+        "AZURE_DEVOPS_PROJECT": "your-project-name",
+        "AZURE_DEVOPS_PAT": "your-personal-access-token"
+      }
+    }
+  }
+}
+```
+
+### Usage in Claude Code
+
+Use the Claude Code CLI to add the server:
+
+```bash
+# Add the MCP server with environment variables
+claude mcp add azure-devops npx -- -y @rxreyn3/azure-devops-mcp
+
+# Then set the required environment variables
+export AZURE_DEVOPS_ORG_URL="https://dev.azure.com/your-organization"
+export AZURE_DEVOPS_PROJECT="your-project-name"
+export AZURE_DEVOPS_PAT="your-personal-access-token"
+
+# Or add with inline environment variables (Unix/macOS/Linux)
+AZURE_DEVOPS_ORG_URL="https://dev.azure.com/your-organization" \
+AZURE_DEVOPS_PROJECT="your-project-name" \
+AZURE_DEVOPS_PAT="your-personal-access-token" \
+claude mcp add azure-devops npx -- -y @rxreyn3/azure-devops-mcp
+```
+
+### Configuration Example
+
+Replace the following values in any of the above configurations:
+
+- `your-organization`: Your Azure DevOps organization name
+- `your-project-name`: Your Azure DevOps project name  
+- `your-personal-access-token`: Your PAT with Agent Pools (read) permission
+
+Optional: Add `"AZURE_DEVOPS_API_VERSION": "7.1"` to the env section if you need a specific API version.
+
 ## Available Tools
 
-### Agent & Queue Management
+### Project-Scoped Tools
 
-#### `ado_health_check`
-Check connection to Azure DevOps and verify configuration.
+These tools work with project-scoped PATs:
 
-#### `list_project_queues`
-List all agent queues available in your project.
+- **`project_health_check`** - Test connection and verify permissions
+- **`project_list_queues`** - List all agent queues in the project
+- **`project_get_queue`** - Get detailed information about a specific queue
 
-#### `get_queue_details`
-Get detailed information about a specific queue by ID or name.
+### Organization-Scoped Tools
 
-#### `find_agent`
-Find which queue/pool an agent belongs to (requires org permissions).
+These tools require organization-level PAT permissions:
 
-#### `list_queue_agents`
-List all agents in a specific queue (requires org permissions).
+- **`org_find_agent`** - Search for an agent across all organization pools
+- **`org_list_agents`** - List agents from project pools with filtering options
 
-### Build Operations
+### Build Tools
 
-#### `list_builds`
-List builds with smart filtering options:
-- Filter by status (inProgress, completed)
-- Filter by result (succeeded, failed, canceled)
-- Time-based filtering (last N hours)
-- Filter by definition, branch, or user
+These tools work with project-scoped PATs and require Build (read) permission:
 
-#### `get_build_details`
-Get comprehensive information about a specific build including timeline and changes.
+- **`build_list`** - List builds with filtering and pagination support
+  - Filter by pipeline name (partial match), status, result, or branch
+  - Returns build details including ID, number, status, and timing
+  - Supports pagination for large result sets
+  
+- **`build_list_definitions`** - List pipeline definitions to find IDs and names
+  - Filter by name (partial match)
+  - Useful for discovering pipeline IDs needed for other operations
+  
+- **`build_get_timeline`** - Get the timeline for a build showing all jobs, tasks, and which agents executed them
+  - Requires a build ID (use `build_list` to find build IDs)
 
-#### `queue_build`
-Start a new build with custom parameters:
-- Specify branch to build
-- Set build parameters
-- Control queue priority
+## Configuration
 
-#### `get_build_logs`
-View build logs for troubleshooting failures.
-
-#### `manage_build`
-Manage running or completed builds:
-- Cancel in-progress builds
-- Retain important builds
-- Remove retention
-
-### Pipeline Management
-
-#### `list_pipelines`
-Discover available build pipelines with filtering by name or path.
-
-#### `get_pipeline_config`
-View detailed pipeline configuration including triggers, variables, and repository settings.
-
-#### `monitor_build_health`
-Get build health metrics and success rates over a time period.
-
-## Development
-
-This project uses [Bun](https://bun.sh) for development tooling while maintaining Node.js compatibility for runtime.
-
-### Prerequisites
-
-- Node.js >= 18.0.0 (for running the MCP server)
-- Bun >= 1.0.0 (for development)
-
-### Setup
+Set the following environment variables:
 
 ```bash
-# Clone the repository
-git clone https://github.com/rxreyn3/ado-mcp-server.git
-cd ado-mcp-server
+# Required
+AZURE_DEVOPS_ORG_URL=https://dev.azure.com/your-organization
+AZURE_DEVOPS_PROJECT=your-project-name
+AZURE_DEVOPS_PAT=your-personal-access-token
 
-# Install dependencies with Bun (faster than npm)
-bun install
-
-# Copy environment variables
-cp .env.example .env
-# Edit .env with your Azure DevOps credentials
+# Optional
+AZURE_DEVOPS_API_VERSION=7.1  # Default: 7.1
 ```
 
-### Development Workflow
+## Usage Examples
 
-```bash
-# Run in development mode with hot reload
-bun run dev
+### Finding Recent Builds
 
-# Run tests
-bun test
-
-# Type checking
-bun run typecheck
-
-# Linting
-bun run lint
-
-# Build for production (Node.js)
-bun run build
-
-# Verify Node.js compatibility
-bun run verify:node
+To get the latest build for a pipeline:
+```
+build_list(definitionNameFilter: "preflight", limit: 1)
 ```
 
-### Building for Distribution
-
-The MCP server is built to run on Node.js:
-
-```bash
-# Build TypeScript to JavaScript
-bun run build
-
-# The built server can be run with Node.js
-node dist/index.js
-
-# Or via npm scripts
-bun run start
+To list all failed builds:
+```
+build_list(result: "Failed", limit: 20)
 ```
 
-## Contributing
+### Working with Pagination
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on:
-- How to set up your development environment
-- Our changeset-based release process
-- Code style and testing requirements
+When listing builds returns a `continuationToken`, use it to get the next page:
+```
+// First call
+build_list(limit: 50)
+// Returns: { builds: [...], continuationToken: "abc123", hasMore: true }
 
-## License
+// Next page
+build_list(limit: 50, continuationToken: "abc123")
+```
 
-MIT
+### Build Timeline Workflow
+
+1. Find a build:
+   ```
+   build_list(definitionNameFilter: "api", limit: 5)
+   ```
+
+2. Get its timeline using the build ID:
+   ```
+   build_get_timeline(buildId: 12345)
+   ```
+
+## Azure DevOps Concepts
+
+### Pools vs Queues
+
+- **Agent Pools**: Organization-level containers that hold the actual build agents
+- **Queues** (Project Agent Pools): Project-level references to agent pools
+- Each project queue maps to one organization pool
+- Agents belong to pools, not queues
+
+### Azure DevOps Server Note
+
+This server is tested with Azure DevOps Services (cloud). Self-hosted Azure DevOps Server may have different permission models.
+
+## Error Handling
+
+If you encounter permission errors:
+
+1. Verify your PAT has the required permissions:
+   - **Agent Pools (read)** - For agent management tools
+   - **Build (read)** - For build timeline tools
+2. For `org_*` tools, ensure your PAT is organization-scoped, not project-scoped
+3. Check that your PAT hasn't expired
+4. Verify you have access to the specified project
+
+Common error messages:
+- "Access denied" - Your PAT lacks necessary permissions
+- "Resource not found" - The queue/agent/build doesn't exist or you lack access
+- "Invalid authentication" - Your PAT may be expired or incorrectly formatted
+- "Timeline not found" - The build ID doesn't exist or doesn't have timeline data

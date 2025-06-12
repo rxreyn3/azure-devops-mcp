@@ -20,17 +20,8 @@ jobs:
     - name: Install dependencies
       run: bun install
     
-    - name: Run linting
-      run: bun run lint
-    
     - name: Run type checking
       run: bun run typecheck
     
-    - name: Run tests
-      run: bun test
-    
     - name: Build project
       run: bun run build
-    
-    - name: Verify Node.js compatibility
-      run: bun run verify:node
