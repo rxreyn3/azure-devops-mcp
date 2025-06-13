@@ -20,7 +20,7 @@ Thank you for your interest in contributing to the Azure DevOps MCP Server! This
 
 2. Install dependencies:
    ```bash
-   npm install
+   bun install
    ```
 
 3. Copy the environment template and configure:
@@ -31,14 +31,12 @@ Thank you for your interest in contributing to the Azure DevOps MCP Server! This
 
 4. Build the project:
    ```bash
-   npm run build
+   bun run build
    ```
 
 5. Run in development mode:
    ```bash
-   npm run dev
-   # or with Bun for auto-reload
-   bun run --watch src/index.ts
+   bun run dev
    ```
 
 ## Project Structure
@@ -103,13 +101,13 @@ To add a new tool to the MCP server:
 
 ```bash
 # Run all tests
-npm test
+bun test
 
 # Run tests in watch mode
-npm run test:watch
+bun test --watch
 
 # Run tests with coverage
-npm run test:coverage
+bun test --coverage
 ```
 
 ### Writing Tests
@@ -144,7 +142,7 @@ describe('yourTool', () => {
 - We use TypeScript for type safety
 - Code is formatted with Prettier (configuration in `.prettierrc`)
 - Linting is handled by ESLint (configuration in `.eslintrc`)
-- Run `npm run lint` before committing
+- Run linting and type checking before committing
 
 ### Style Guidelines
 
@@ -166,9 +164,8 @@ describe('yourTool', () => {
 
 3. **Run tests and linting**:
    ```bash
-   npm test
-   npm run lint
-   npm run typecheck
+   bun test
+   bun run typecheck
    ```
 
 4. **Commit your changes** with descriptive messages:
@@ -213,7 +210,7 @@ Use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) to te
 
 ```bash
 # Install globally
-npm install -g @modelcontextprotocol/inspector
+bun add -g @modelcontextprotocol/inspector
 
 # Run the inspector
 mcp-inspector
@@ -223,7 +220,7 @@ mcp-inspector
 
 Enable debug logging by setting:
 ```bash
-DEBUG=azure-devops-mcp:* npm run dev
+DEBUG=azure-devops-mcp:* bun run dev
 ```
 
 ## Getting Help
@@ -241,8 +238,8 @@ The CI workflow runs automatically on:
 - Pull requests to main branch
 
 It performs:
-- Type checking (`npm run typecheck`)
-- Building (`npm run build`)
+- Type checking (`bun run typecheck`)
+- Building (`bun run build`)
 - Testing (when tests are added)
 
 ### Release Process
