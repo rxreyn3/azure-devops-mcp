@@ -84,22 +84,14 @@ Add the following to your Claude Desktop configuration:
 
 ### Usage in Claude Code
 
-Use the Claude Code CLI to add the server:
+Use the Claude Code CLI to add the server with environment variables:
 
 ```bash
-# Add the MCP server with environment variables
-claude mcp add azure-devops npx -- -y @rxreyn3/azure-devops-mcp
-
-# Then set the required environment variables
-export AZURE_DEVOPS_ORG_URL="https://dev.azure.com/your-organization"
-export AZURE_DEVOPS_PROJECT="your-project-name"
-export AZURE_DEVOPS_PAT="your-personal-access-token"
-
-# Or add with inline environment variables (Unix/macOS/Linux)
-AZURE_DEVOPS_ORG_URL="https://dev.azure.com/your-organization" \
-AZURE_DEVOPS_PROJECT="your-project-name" \
-AZURE_DEVOPS_PAT="your-personal-access-token" \
-claude mcp add azure-devops npx -- -y @rxreyn3/azure-devops-mcp
+claude mcp add azure-devops \
+  -e AZURE_DEVOPS_ORG_URL="https://dev.azure.com/your-organization" \
+  -e AZURE_DEVOPS_PROJECT="your-project-name" \
+  -e AZURE_DEVOPS_PAT="your-personal-access-token" \
+  -- npx -y @rxreyn3/azure-devops-mcp
 ```
 
 ### Configuration Example
@@ -159,56 +151,26 @@ AZURE_DEVOPS_PAT=your-personal-access-token
 AZURE_DEVOPS_API_VERSION=7.1  # Default: 7.1
 ```
 
-## Usage Examples
+## What Can This Server Do?
 
-### Finding Recent Builds
+This MCP server enables AI assistants to help you:
 
-To get the latest build for a pipeline:
-```
-build_list(definitionNameFilter: "preflight", limit: 1)
-```
+- **Monitor build infrastructure**: "Show me all online agents in the build pool"
+- **Investigate build failures**: "Find failed builds from the last 24 hours"
+- **Analyze build performance**: "Get the timeline for build #12345 to see which tasks took longest"
+- **Find specific agents**: "Which pool contains agent BM40-BUILD-01?"
+- **Check queue status**: "How many agents are available in the Windows queue?"
+- **Track pipeline runs**: "Show me the latest builds for the API pipeline"
 
-To list all failed builds:
-```
-build_list(result: "Failed", limit: 20)
-```
+### Example Interactions
 
-### Working with Pagination
-
-When listing builds returns a `continuationToken`, use it to get the next page:
-```
-// First call
-build_list(limit: 50)
-// Returns: { builds: [...], continuationToken: "abc123", hasMore: true }
-
-// Next page
-build_list(limit: 50, continuationToken: "abc123")
-```
-
-### Build Timeline Workflow
-
-1. Find a build:
-   ```
-   build_list(definitionNameFilter: "api", limit: 5)
-   ```
-
-2. Get its timeline using the build ID:
-   ```
-   build_get_timeline(buildId: 12345)
-   ```
-
-## Azure DevOps Concepts
-
-### Pools vs Queues
-
-- **Agent Pools**: Organization-level containers that hold the actual build agents
-- **Queues** (Project Agent Pools): Project-level references to agent pools
-- Each project queue maps to one organization pool
-- Agents belong to pools, not queues
-
-### Azure DevOps Server Note
-
-This server is tested with Azure DevOps Services (cloud). Self-hosted Azure DevOps Server may have different permission models.
+Ask your AI assistant questions like:
+- "List all builds that failed today"
+- "Find which agent ran build 12345"
+- "Show me all available build queues in the project"
+- "Check if agent BM40-BUILD-01 is online"
+- "Get the last 5 builds for the preflight pipeline"
+- "Which builds are currently running?"
 
 ## Error Handling
 
@@ -226,3 +188,15 @@ Common error messages:
 - "Resource not found" - The queue/agent/build doesn't exist or you lack access
 - "Invalid authentication" - Your PAT may be expired or incorrectly formatted
 - "Timeline not found" - The build ID doesn't exist or doesn't have timeline data
+
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on:
+- Development setup
+- Adding new tools
+- Testing guidelines
+- Submitting pull requests
+
+## License
+
+MIT
