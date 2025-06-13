@@ -1,5 +1,11 @@
 # @rxreyn3/azure-devops-mcp
 
+## 1.2.1
+
+### Patch Changes
+
+- b91dcd0: Added and updated docs.
+
 ## 1.2.0
 
 ### Minor Changes
