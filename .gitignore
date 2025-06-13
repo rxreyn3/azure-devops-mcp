@@ -66,4 +66,4 @@ logs/
 *.tsbuildinfo
 
 # Session files
-session_*.md
+session_*.md.mcp.json

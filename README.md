@@ -47,11 +47,11 @@ Add the following to your Windsurf settings at `~/.windsurf/settings.json`:
   "mcpServers": {
     "azure-devops": {
       "command": "npx",
-      "args": ["-y", "@rxreyn3/azure-devops-mcp"],
+      "args": ["-y", "@rxreyn3/azure-devops-mcp@latest"],
       "env": {
-        "AZURE_DEVOPS_ORG_URL": "https://dev.azure.com/your-organization",
-        "AZURE_DEVOPS_PROJECT": "your-project-name",
-        "AZURE_DEVOPS_PAT": "your-personal-access-token"
+        "ADO_ORGANIZATION": "https://dev.azure.com/your-organization",
+        "ADO_PROJECT": "your-project-name",
+        "ADO_PAT": "your-personal-access-token"
       }
     }
   }
@@ -71,11 +71,11 @@ Add the following to your Claude Desktop configuration:
   "mcpServers": {
     "azure-devops": {
       "command": "npx",
-      "args": ["-y", "@rxreyn3/azure-devops-mcp"],
+      "args": ["-y", "@rxreyn3/azure-devops-mcp@latest"],
       "env": {
-        "AZURE_DEVOPS_ORG_URL": "https://dev.azure.com/your-organization",
-        "AZURE_DEVOPS_PROJECT": "your-project-name",
-        "AZURE_DEVOPS_PAT": "your-personal-access-token"
+        "ADO_ORGANIZATION": "https://dev.azure.com/your-organization",
+        "ADO_PROJECT": "your-project-name",
+        "ADO_PAT": "your-personal-access-token"
       }
     }
   }
@@ -88,10 +88,10 @@ Use the Claude Code CLI to add the server with environment variables:
 
 ```bash
 claude mcp add azure-devops \
-  -e AZURE_DEVOPS_ORG_URL="https://dev.azure.com/your-organization" \
-  -e AZURE_DEVOPS_PROJECT="your-project-name" \
-  -e AZURE_DEVOPS_PAT="your-personal-access-token" \
-  -- npx -y @rxreyn3/azure-devops-mcp
+  -e ADO_ORGANIZATION="https://dev.azure.com/your-organization" \
+  -e ADO_PROJECT="your-project-name" \
+  -e ADO_PAT="your-personal-access-token" \
+  -- npx -y @rxreyn3/azure-devops-mcp@latest
 ```
 
 ### Configuration Example
@@ -102,7 +102,7 @@ Replace the following values in any of the above configurations:
 - `your-project-name`: Your Azure DevOps project name  
 - `your-personal-access-token`: Your PAT with Agent Pools (read) permission
 
-Optional: Add `"AZURE_DEVOPS_API_VERSION": "7.1"` to the env section if you need a specific API version.
+Optional: Add `"ADO_API_VERSION": "7.1"` to the env section if you need a specific API version.
 
 ## Available Tools
 
@@ -196,6 +196,37 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 - Adding new tools
 - Testing guidelines
 - Submitting pull requests
+
+## Troubleshooting
+
+### Connection Failed Error
+
+If you see "MCP error -32000: Connection closed" in the logs:
+
+1. **Check environment variable names**: Ensure you're using `ADO_ORGANIZATION`, `ADO_PROJECT`, and `ADO_PAT` (not the old `AZURE_DEVOPS_*` names)
+2. **Verify credentials**: Replace placeholder values with your actual Azure DevOps details
+3. **Test your PAT**: Ensure your Personal Access Token has the required permissions
+4. **Enable debug logging**: Set `LOG_LEVEL: "debug"` in your configuration
+
+### Example Working Configuration
+
+```json
+{
+  "mcpServers": {
+    "azure-devops": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@rxreyn3/azure-devops-mcp@latest"],
+      "env": {
+        "ADO_ORGANIZATION": "https://dev.azure.com/mycompany",
+        "ADO_PROJECT": "MyProject",
+        "ADO_PAT": "abcd1234efgh5678ijkl9012mnop3456qrst7890",
+        "LOG_LEVEL": "debug"
+      }
+    }
+  }
+}
+```
 
 ## License
 

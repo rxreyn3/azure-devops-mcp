@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "azure-devops": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@rxreyn3/azure-devops-mcp@latest"
+      ],
+      "env": {
+        "ADO_ORGANIZATION": "https://dev.azure.com/ea-dre-central",
+        "ADO_PROJECT": "Hopper",
+        "ADO_PAT": "8YoubS4XvcBYrRF1A9u2ghwrIv205LKoc67uJNydJ3Vr1twRxgUoJQQJ99BFACAAAAAm4AvwAAASAZDO1qkH",
+        "LOG_LEVEL": "debug"
+      }
+    }
+  }
+}
