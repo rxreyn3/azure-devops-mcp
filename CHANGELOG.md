@@ -1,5 +1,11 @@
 # @rxreyn3/azure-devops-mcp
 
+## 1.2.2
+
+### Patch Changes
+
+- 4dd1687: Updated docs to show using latest for mcp server.
+
 ## 1.2.1
 
 ### Patch Changes
