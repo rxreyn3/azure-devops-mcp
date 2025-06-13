@@ -66,4 +66,7 @@ logs/
 *.tsbuildinfo
 
 # Session files
-session_*.md.mcp.json
+session_*.md
+
+# MCP configuration with credentials
+.mcp.json
