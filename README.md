@@ -206,7 +206,7 @@ If you see "MCP error -32000: Connection closed" in the logs:
 1. **Check environment variable names**: Ensure you're using `ADO_ORGANIZATION`, `ADO_PROJECT`, and `ADO_PAT` (not the old `AZURE_DEVOPS_*` names)
 2. **Verify credentials**: Replace placeholder values with your actual Azure DevOps details
 3. **Test your PAT**: Ensure your Personal Access Token has the required permissions
-4. **Enable debug logging**: Set `LOG_LEVEL: "debug"` in your configuration
+4. **Test your connection**: Use the `project_health_check` tool to verify connectivity
 
 ### Example Working Configuration
 
@@ -220,8 +220,7 @@ If you see "MCP error -32000: Connection closed" in the logs:
       "env": {
         "ADO_ORGANIZATION": "https://dev.azure.com/mycompany",
         "ADO_PROJECT": "MyProject",
-        "ADO_PAT": "abcd1234efgh5678ijkl9012mnop3456qrst7890",
-        "LOG_LEVEL": "debug"
+        "ADO_PAT": "abcd1234efgh5678ijkl9012mnop3456qrst7890"
       }
     }
   }
