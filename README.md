@@ -102,8 +102,6 @@ Replace the following values in any of the above configurations:
 - `your-project-name`: Your Azure DevOps project name  
 - `your-personal-access-token`: Your PAT with Agent Pools (read) permission
 
-Optional: Add `"ADO_API_VERSION": "7.1"` to the env section if you need a specific API version.
-
 ## Available Tools
 
 ### Project-Scoped Tools
@@ -136,20 +134,6 @@ These tools work with project-scoped PATs and require Build (read) permission:
   
 - **`build_get_timeline`** - Get the timeline for a build showing all jobs, tasks, and which agents executed them
   - Requires a build ID (use `build_list` to find build IDs)
-
-## Configuration
-
-Set the following environment variables:
-
-```bash
-# Required
-AZURE_DEVOPS_ORG_URL=https://dev.azure.com/your-organization
-AZURE_DEVOPS_PROJECT=your-project-name
-AZURE_DEVOPS_PAT=your-personal-access-token
-
-# Optional
-AZURE_DEVOPS_API_VERSION=7.1  # Default: 7.1
-```
 
 ## What Can This Server Do?
 
