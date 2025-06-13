@@ -47,11 +47,11 @@ Add the following to your Windsurf settings at `~/.windsurf/settings.json`:
   "mcpServers": {
     "azure-devops": {
       "command": "npx",
-      "args": ["-y", "@rxreyn3/azure-devops-mcp"],
+      "args": ["-y", "@rxreyn3/azure-devops-mcp@latest"],
       "env": {
-        "AZURE_DEVOPS_ORG_URL": "https://dev.azure.com/your-organization",
-        "AZURE_DEVOPS_PROJECT": "your-project-name",
-        "AZURE_DEVOPS_PAT": "your-personal-access-token"
+        "ADO_ORGANIZATION": "https://dev.azure.com/your-organization",
+        "ADO_PROJECT": "your-project-name",
+        "ADO_PAT": "your-personal-access-token"
       }
     }
   }
@@ -71,11 +71,11 @@ Add the following to your Claude Desktop configuration:
   "mcpServers": {
     "azure-devops": {
       "command": "npx",
-      "args": ["-y", "@rxreyn3/azure-devops-mcp"],
+      "args": ["-y", "@rxreyn3/azure-devops-mcp@latest"],
       "env": {
-        "AZURE_DEVOPS_ORG_URL": "https://dev.azure.com/your-organization",
-        "AZURE_DEVOPS_PROJECT": "your-project-name",
-        "AZURE_DEVOPS_PAT": "your-personal-access-token"
+        "ADO_ORGANIZATION": "https://dev.azure.com/your-organization",
+        "ADO_PROJECT": "your-project-name",
+        "ADO_PAT": "your-personal-access-token"
       }
     }
   }
@@ -88,10 +88,10 @@ Use the Claude Code CLI to add the server with environment variables:
 
 ```bash
 claude mcp add azure-devops \
-  -e AZURE_DEVOPS_ORG_URL="https://dev.azure.com/your-organization" \
-  -e AZURE_DEVOPS_PROJECT="your-project-name" \
-  -e AZURE_DEVOPS_PAT="your-personal-access-token" \
-  -- npx -y @rxreyn3/azure-devops-mcp
+  -e ADO_ORGANIZATION="https://dev.azure.com/your-organization" \
+  -e ADO_PROJECT="your-project-name" \
+  -e ADO_PAT="your-personal-access-token" \
+  -- npx -y @rxreyn3/azure-devops-mcp@latest
 ```
 
 ### Configuration Example
@@ -101,8 +101,6 @@ Replace the following values in any of the above configurations:
 - `your-organization`: Your Azure DevOps organization name
 - `your-project-name`: Your Azure DevOps project name  
 - `your-personal-access-token`: Your PAT with Agent Pools (read) permission
-
-Optional: Add `"AZURE_DEVOPS_API_VERSION": "7.1"` to the env section if you need a specific API version.
 
 ## Available Tools
 
@@ -136,20 +134,6 @@ These tools work with project-scoped PATs and require Build (read) permission:
   
 - **`build_get_timeline`** - Get the timeline for a build showing all jobs, tasks, and which agents executed them
   - Requires a build ID (use `build_list` to find build IDs)
-
-## Configuration
-
-Set the following environment variables:
-
-```bash
-# Required
-AZURE_DEVOPS_ORG_URL=https://dev.azure.com/your-organization
-AZURE_DEVOPS_PROJECT=your-project-name
-AZURE_DEVOPS_PAT=your-personal-access-token
-
-# Optional
-AZURE_DEVOPS_API_VERSION=7.1  # Default: 7.1
-```
 
 ## What Can This Server Do?
 
