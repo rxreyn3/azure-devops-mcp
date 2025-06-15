@@ -124,7 +124,8 @@ These tools require organization-level PAT permissions:
 These tools work with project-scoped PATs and require Build (read) permission:
 
 - **`build_list`** - List builds with filtering and pagination support
-  - Filter by pipeline name (partial match), status, result, or branch
+  - Filter by pipeline name (partial match), status, result, branch, or date range
+  - Date filtering with minTime/maxTime parameters (e.g., "2024-01-01", "2024-01-31T23:59:59Z")
   - Returns build details including ID, number, status, and timing
   - Supports pagination for large result sets
   
@@ -135,18 +136,7 @@ These tools work with project-scoped PATs and require Build (read) permission:
 - **`build_get_timeline`** - Get the timeline for a build showing all jobs, tasks, and which agents executed them
   - Requires a build ID (use `build_list` to find build IDs)
 
-## What Can This Server Do?
-
-This MCP server enables AI assistants to help you:
-
-- **Monitor build infrastructure**: "Show me all online agents in the build pool"
-- **Investigate build failures**: "Find failed builds from the last 24 hours"
-- **Analyze build performance**: "Get the timeline for build #12345 to see which tasks took longest"
-- **Find specific agents**: "Which pool contains agent BM40-BUILD-01?"
-- **Check queue status**: "How many agents are available in the Windows queue?"
-- **Track pipeline runs**: "Show me the latest builds for the API pipeline"
-
-### Example Interactions
+## Example Interactions
 
 Ask your AI assistant questions like:
 - "List all builds that failed today"
@@ -155,6 +145,8 @@ Ask your AI assistant questions like:
 - "Check if agent BM40-BUILD-01 is online"
 - "Get the last 5 builds for the preflight pipeline"
 - "Which builds are currently running?"
+- "Show me builds from January 2024" (uses date filtering with minTime/maxTime)
+- "List failed builds between 2024-01-15 and 2024-01-20"
 
 ## Error Handling
 
