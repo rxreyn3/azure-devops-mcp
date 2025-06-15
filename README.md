@@ -136,18 +136,7 @@ These tools work with project-scoped PATs and require Build (read) permission:
 - **`build_get_timeline`** - Get the timeline for a build showing all jobs, tasks, and which agents executed them
   - Requires a build ID (use `build_list` to find build IDs)
 
-## What Can This Server Do?
-
-This MCP server enables AI assistants to help you:
-
-- **Monitor build infrastructure**: "Show me all online agents in the build pool"
-- **Investigate build failures**: "Find failed builds from the last 24 hours"
-- **Analyze build performance**: "Get the timeline for build #12345 to see which tasks took longest"
-- **Find specific agents**: "Which pool contains agent BM40-BUILD-01?"
-- **Check queue status**: "How many agents are available in the Windows queue?"
-- **Track pipeline runs**: "Show me the latest builds for the API pipeline"
-
-### Example Interactions
+## Example Interactions
 
 Ask your AI assistant questions like:
 - "List all builds that failed today"
