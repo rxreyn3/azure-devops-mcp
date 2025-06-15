@@ -1,5 +1,11 @@
 # @rxreyn3/azure-devops-mcp
 
+## 1.3.0
+
+### Minor Changes
+
+- 6db197f: Added date filtering for listing builds.
+
 ## 1.2.2
 
 ### Patch Changes
