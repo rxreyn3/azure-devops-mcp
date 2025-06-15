@@ -124,7 +124,8 @@ These tools require organization-level PAT permissions:
 These tools work with project-scoped PATs and require Build (read) permission:
 
 - **`build_list`** - List builds with filtering and pagination support
-  - Filter by pipeline name (partial match), status, result, or branch
+  - Filter by pipeline name (partial match), status, result, branch, or date range
+  - Date filtering with minTime/maxTime parameters (e.g., "2024-01-01", "2024-01-31T23:59:59Z")
   - Returns build details including ID, number, status, and timing
   - Supports pagination for large result sets
   
@@ -155,6 +156,8 @@ Ask your AI assistant questions like:
 - "Check if agent BM40-BUILD-01 is online"
 - "Get the last 5 builds for the preflight pipeline"
 - "Which builds are currently running?"
+- "Show me builds from January 2024" (uses date filtering with minTime/maxTime)
+- "List failed builds between 2024-01-15 and 2024-01-20"
 
 ## Error Handling
 

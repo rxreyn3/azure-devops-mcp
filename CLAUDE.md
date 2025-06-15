@@ -1,0 +1,4 @@
+- use bun commands instead of npm:
+  - bun install instead of npm install
+  - bun run build instead of npm run build
+  - bun test instead of npm test

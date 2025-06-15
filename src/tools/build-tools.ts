@@ -91,7 +91,7 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
     build_list: {
       tool: {
         name: 'build_list',
-        description: 'List builds with optional filtering by pipeline name, status, result, or branch. Supports pagination for large result sets.',
+        description: 'List builds with optional filtering by pipeline name, status, result, branch, or date range. Supports pagination for large result sets.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -127,6 +127,14 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
               type: 'string',
               description: 'Filter by source branch (e.g., "refs/heads/main")',
             },
+            minTime: {
+              type: 'string',
+              description: 'Filter builds started after this date/time. Accepts ISO 8601 format (e.g., "2024-01-01T00:00:00Z") or standard date strings (e.g., "2024-01-01")',
+            },
+            maxTime: {
+              type: 'string',
+              description: 'Filter builds started before this date/time. Accepts ISO 8601 format (e.g., "2024-01-31T23:59:59Z") or standard date strings (e.g., "2024-01-31")',
+            },
           },
           required: [],
         },
@@ -140,6 +148,8 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
           status?: string;
           result?: string;
           branchName?: string;
+          minTime?: string;
+          maxTime?: string;
         };
 
         // Map string status/result to enums
@@ -153,12 +163,49 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
           resultFilter = BuildInterfaces.BuildResult[typedArgs.result as keyof typeof BuildInterfaces.BuildResult];
         }
 
+        // Parse and validate date parameters
+        let minTime: Date | undefined;
+        let maxTime: Date | undefined;
+
+        if (typedArgs.minTime) {
+          minTime = new Date(typedArgs.minTime);
+          if (isNaN(minTime.getTime())) {
+            return formatErrorResponse({
+              type: 'validation_error',
+              message: `Invalid minTime format: "${typedArgs.minTime}". Please use ISO 8601 format (e.g., "2024-01-01T00:00:00Z") or standard date strings (e.g., "2024-01-01").`,
+              details: 'The date string could not be parsed.'
+            });
+          }
+        }
+
+        if (typedArgs.maxTime) {
+          maxTime = new Date(typedArgs.maxTime);
+          if (isNaN(maxTime.getTime())) {
+            return formatErrorResponse({
+              type: 'validation_error',
+              message: `Invalid maxTime format: "${typedArgs.maxTime}". Please use ISO 8601 format (e.g., "2024-01-31T23:59:59Z") or standard date strings (e.g., "2024-01-31").`,
+              details: 'The date string could not be parsed.'
+            });
+          }
+        }
+
+        // Validate that minTime is not after maxTime
+        if (minTime && maxTime && minTime > maxTime) {
+          return formatErrorResponse({
+            type: 'validation_error',
+            message: 'Invalid date range: minTime must be before or equal to maxTime.',
+            details: `minTime (${minTime.toISOString()}) is after maxTime (${maxTime.toISOString()}). Please swap the values.`
+          });
+        }
+
         const result = await client.getBuilds({
           definitionIds: typedArgs.definitionId ? [typedArgs.definitionId] : undefined,
           definitionNameFilter: typedArgs.definitionNameFilter,
           statusFilter,
           resultFilter,
           branchName: typedArgs.branchName,
+          minTime,
+          maxTime,
           top: typedArgs.limit || 50,
           continuationToken: typedArgs.continuationToken,
         });

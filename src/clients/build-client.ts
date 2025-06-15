@@ -44,6 +44,8 @@ export class BuildClient extends AzureDevOpsBaseClient {
       statusFilter?: BuildInterfaces.BuildStatus;
       resultFilter?: BuildInterfaces.BuildResult;
       branchName?: string;
+      minTime?: Date;
+      maxTime?: Date;
       top?: number;
       continuationToken?: string;
     } = {}
@@ -77,8 +79,8 @@ export class BuildClient extends AzureDevOpsBaseClient {
           definitionIds,
           undefined, // queues
           undefined, // buildNumber
-          undefined, // minTime
-          undefined, // maxTime
+          options.minTime,
+          options.maxTime,
           undefined, // requestedFor
           undefined, // reasonFilter
           options.statusFilter,
