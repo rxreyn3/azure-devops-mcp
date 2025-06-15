@@ -3,6 +3,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListResourcesRequestSchema,
+  ListPromptsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { Config } from './config.js';
 import { TaskAgentClient } from './clients/task-agent-client.js';
@@ -27,10 +29,12 @@ export class AzureDevOpsMCPServer {
       {
         name: '@rxreyn3/azure-devops-mcp',
         version: packageJson.version,
+        description: 'MCP server for Azure DevOps agent, queue, and build management. Provides tools for interacting with Azure DevOps but does not support resources or prompts.',
       },
       {
         capabilities: {
           tools: {},
+          // Explicitly not supporting resources or prompts
         },
       },
     );
@@ -55,6 +59,23 @@ export class AzureDevOpsMCPServer {
 
       const result = await handler(args || {});
       return result as { content: Array<{ type: 'text'; text: string }> };
+    });
+
+    // Handle unsupported resources request with helpful error
+    this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
+      throw new Error(
+        'Server capability not supported: resources. This Azure DevOps MCP server only supports tools. ' +
+        'To discover available functionality, use the tools/list method instead. ' +
+        'Available tool examples: project_health_check, project_list_queues, build_list, org_list_agents, and 4 more.'
+      );
+    });
+
+    // Handle unsupported prompts request with helpful error
+    this.server.setRequestHandler(ListPromptsRequestSchema, async () => {
+      throw new Error(
+        'Server capability not supported: prompts. This Azure DevOps MCP server only supports tools. ' +
+        'To interact with Azure DevOps, use the tools/list method to discover available tools, then call them directly.'
+      );
     });
   }
 
