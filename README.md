@@ -34,6 +34,81 @@ This server provides tools with different scope requirements:
 
 > **Note**: Project-scoped PATs will only work with `project_*` and `build_*` tools. The `org_*` tools require organization-level access because agents are managed at the organization level in Azure DevOps.
 
+## Security Best Practices
+
+### ⚠️ Important: Handling Sensitive Credentials
+
+The `env` field in MCP client configurations (Claude Desktop, Claude Code, Windsurf) passes environment variables directly to the MCP server process. While convenient, **never share your configuration files** containing actual PAT values.
+
+### Recommended Approaches:
+
+1. **Direct Configuration (Simplest)**
+   - Add your credentials directly to the configuration file
+   - Keep the file secure and never commit it to version control
+   - This is suitable for personal use on trusted machines
+
+2. **Environment Variable Reference (Most Secure)**
+   - Some MCP clients support referencing system environment variables
+   - Set your credentials as system environment variables first:
+     ```bash
+     # macOS/Linux
+     export ADO_PAT="your-actual-pat-value"
+     
+     # Windows PowerShell
+     $env:ADO_PAT = "your-actual-pat-value"
+     ```
+   - Then reference them in your config (if supported by your client)
+
+3. **Configuration Management**
+   - Store a template configuration in version control with placeholder values
+   - Keep your actual configuration with real values locally
+   - Use `.gitignore` to prevent accidental commits
+
+### PAT Security Guidelines
+
+- **Create dedicated PATs** for MCP usage with minimal required permissions
+- **Set short expiration dates** and rotate regularly
+- **Use different PATs** for different projects or environments
+- **Never share PATs** in documentation, issues, or support requests
+- **Revoke immediately** if you suspect compromise
+
+### Platform-Specific Environment Variable Setup
+
+If you choose to use system environment variables:
+
+#### macOS/Linux
+```bash
+# Add to ~/.bashrc, ~/.zshrc, or ~/.profile
+export ADO_ORGANIZATION="https://dev.azure.com/your-organization"
+export ADO_PROJECT="your-project-name"
+export ADO_PAT="your-personal-access-token"
+
+# Apply changes
+source ~/.zshrc  # or source ~/.bashrc
+```
+
+#### Windows (PowerShell)
+```powershell
+# Set user environment variables (permanent)
+[System.Environment]::SetEnvironmentVariable("ADO_ORGANIZATION", "https://dev.azure.com/your-organization", "User")
+[System.Environment]::SetEnvironmentVariable("ADO_PROJECT", "your-project-name", "User")
+[System.Environment]::SetEnvironmentVariable("ADO_PAT", "your-personal-access-token", "User")
+
+# Restart your terminal for changes to take effect
+```
+
+#### Windows (Command Prompt)
+```cmd
+# Set user environment variables (permanent)
+setx ADO_ORGANIZATION "https://dev.azure.com/your-organization"
+setx ADO_PROJECT "your-project-name"
+setx ADO_PAT "your-personal-access-token"
+
+# Restart your terminal for changes to take effect
+```
+
+**Note**: Setting system environment variables is optional. The MCP client's `env` field will pass these values directly to the server process regardless of your system environment.
+
 ## Installation & Usage
 
 This MCP server can be used with Windsurf, Claude Desktop, and Claude Code. All methods use `npx` to run the package directly without installation.
