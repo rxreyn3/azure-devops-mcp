@@ -1,5 +1,12 @@
 # @rxreyn3/azure-devops-mcp
 
+## 1.3.3
+
+### Patch Changes
+
+- ed9626c: Add BuildReason enum mapping to convert numeric reason values to human-readable strings in build_list output
+- ed9626c: Convert numeric state and result values to human-readable strings in build_list and build_get_timeline outputs
+
 ## 1.3.2
 
 ### Patch Changes
