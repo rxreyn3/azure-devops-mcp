@@ -1,5 +1,11 @@
 # @rxreyn3/azure-devops-mcp
 
+## 1.3.2
+
+### Patch Changes
+
+- cad71e7: Removed list resources and list prompt handlers.
+
 ## 1.3.1
 
 ### Patch Changes
