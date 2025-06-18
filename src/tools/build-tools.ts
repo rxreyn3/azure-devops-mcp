@@ -1,6 +1,7 @@
 import { ToolDefinition } from '../types/tool-types.js';
 import { BuildClient } from '../clients/build-client.js';
 import { formatErrorResponse } from '../utils/formatters.js';
+import { mapBuildStatus, mapBuildResult, mapTimelineRecordState, mapTaskResult, mapBuildReason } from '../utils/enum-mappers.js';
 import * as BuildInterfaces from 'azure-devops-node-api/interfaces/BuildInterfaces.js';
 
 export function createBuildTools(client: BuildClient): Record<string, ToolDefinition> {
@@ -51,8 +52,8 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
               workerName: job.workerName,
               startTime: job.startTime,
               finishTime: job.finishTime,
-              state: job.state,
-              result: job.result,
+              state: mapTimelineRecordState(job.state),
+              result: mapTaskResult(job.result),
               percentComplete: job.percentComplete,
               id: job.id,
             })),
@@ -62,8 +63,8 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
               name: task.name,
               startTime: task.startTime,
               finishTime: task.finishTime,
-              state: task.state,
-              result: task.result,
+              state: mapTimelineRecordState(task.state),
+              result: mapTaskResult(task.result),
               percentComplete: task.percentComplete,
               parentId: task.parentId,
               id: task.id,
@@ -222,9 +223,9 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
             id: build.definition?.id,
             name: build.definition?.name,
           },
-          status: build.status,
-          result: build.result,
-          reason: build.reason,
+          status: mapBuildStatus(build.status),
+          result: mapBuildResult(build.result),
+          reason: mapBuildReason(build.reason),
           startTime: build.startTime,
           finishTime: build.finishTime,
           sourceBranch: build.sourceBranch,
