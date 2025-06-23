@@ -7,8 +7,9 @@ A Model Context Protocol (MCP) server for interacting with Azure DevOps agents a
 ### Required PAT Permissions
 
 When creating your Personal Access Token (PAT) in Azure DevOps, you must grant:
-- **Agent Pools (read)** - Required for agent management tools
-- **Build (read)** - Required for build timeline tools
+- **Agent Pools (read)** - Required for agent management tools and queueing builds
+- **Build (read)** - Required for listing builds and viewing timelines
+- **Build (read & execute)** - Required for queueing new builds
 
 ### Scope Requirements
 
@@ -30,7 +31,7 @@ This server provides tools with different scope requirements:
    - Scope: **Organization** (not project-specific)
    - Permissions: 
      - **Agent Pools (read)** - For agent management tools
-     - **Build (read)** - For build timeline tools
+     - **Build (read & execute)** - For build operations (list, view, queue)
 
 > **Note**: Project-scoped PATs will only work with `project_*` and `build_*` tools. The `org_*` tools require organization-level access because agents are managed at the organization level in Azure DevOps.
 
@@ -196,20 +197,25 @@ These tools require organization-level PAT permissions:
 
 ### Build Tools
 
-These tools work with project-scoped PATs and require Build (read) permission:
+These tools work with project-scoped PATs:
 
-- **`build_list`** - List builds with filtering and pagination support
+- **`build_list`** - List builds with filtering and pagination support (requires Build read)
   - Filter by pipeline name (partial match), status, result, branch, or date range
   - Date filtering with minTime/maxTime parameters (e.g., "2024-01-01", "2024-01-31T23:59:59Z")
   - Returns build details including ID, number, status, and timing
   - Supports pagination for large result sets
   
-- **`build_list_definitions`** - List pipeline definitions to find IDs and names
+- **`build_list_definitions`** - List pipeline definitions to find IDs and names (requires Build read)
   - Filter by name (partial match)
   - Useful for discovering pipeline IDs needed for other operations
   
-- **`build_get_timeline`** - Get the timeline for a build showing all jobs, tasks, and which agents executed them
+- **`build_get_timeline`** - Get the timeline for a build showing all jobs, tasks, and which agents executed them (requires Build read)
   - Requires a build ID (use `build_list` to find build IDs)
+
+- **`build_queue`** - Queue (launch) a new build for a pipeline definition (requires Build read & execute AND Agent Pools read)
+  - Required: definitionId (use `build_list_definitions` to find)
+  - Optional: sourceBranch, parameters (key-value pairs), reason, demands, queueId
+  - Returns the queued build details including ID and status
 
 ## Example Interactions
 
@@ -222,17 +228,21 @@ Ask your AI assistant questions like:
 - "Which builds are currently running?"
 - "Show me builds from January 2024" (uses date filtering with minTime/maxTime)
 - "List failed builds between 2024-01-15 and 2024-01-20"
+- "Queue a build for pipeline X with parameter Y=Z"
+- "Launch the nightly build with custom branch refs/heads/feature/test"
 
 ## Error Handling
 
 If you encounter permission errors:
 
 1. Verify your PAT has the required permissions:
-   - **Agent Pools (read)** - For agent management tools
-   - **Build (read)** - For build timeline tools
+   - **Agent Pools (read)** - For agent management tools and `build_queue`
+   - **Build (read)** - For listing builds and viewing timelines
+   - **Build (read & execute)** - For queueing new builds with `build_queue`
 2. For `org_*` tools, ensure your PAT is organization-scoped, not project-scoped
-3. Check that your PAT hasn't expired
-4. Verify you have access to the specified project
+3. For `build_queue`, you need BOTH "Build (read & execute)" AND "Agent Pools (read)"
+4. Check that your PAT hasn't expired
+5. Verify you have access to the specified project
 
 Common error messages:
 - "Access denied" - Your PAT lacks necessary permissions

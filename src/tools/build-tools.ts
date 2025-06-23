@@ -330,5 +330,115 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
         };
       },
     },
+
+    build_queue: {
+      tool: {
+        name: 'build_queue',
+        description: 'Queue (launch) a new build for a pipeline definition. Returns the queued build details. Requires PAT with "Build (read & execute)" and "Agent Pools (read)" scopes.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            definitionId: {
+              type: 'number',
+              description: 'The ID of the build definition/pipeline to queue. Use build_list_definitions to find the ID.',
+            },
+            sourceBranch: {
+              type: 'string',
+              description: 'The branch to build from (e.g., "refs/heads/main"). If not specified, uses the default branch.',
+            },
+            parameters: {
+              type: 'object',
+              description: 'Build parameters as key-value pairs. These override default pipeline variables.',
+              additionalProperties: {
+                type: 'string',
+              },
+            },
+            reason: {
+              type: 'string',
+              enum: ['Manual', 'IndividualCI', 'BatchedCI', 'Schedule', 'UserCreated', 'PullRequest'],
+              description: 'The reason for the build (default: Manual)',
+            },
+            demands: {
+              type: 'array',
+              items: {
+                type: 'string',
+              },
+              description: 'Agent demands for the build (e.g., ["Agent.OS -equals Windows_NT"])',
+            },
+            queueId: {
+              type: 'number',
+              description: 'Specific agent queue ID to use. If not specified, uses the default queue.',
+            },
+          },
+          required: ['definitionId'],
+        },
+      },
+      handler: async (args: unknown) => {
+        const typedArgs = args as {
+          definitionId: number;
+          sourceBranch?: string;
+          parameters?: { [key: string]: string };
+          reason?: string;
+          demands?: string[];
+          queueId?: number;
+        };
+
+        // Map string reason to enum
+        let buildReason: BuildInterfaces.BuildReason | undefined;
+        if (typedArgs.reason) {
+          buildReason = BuildInterfaces.BuildReason[typedArgs.reason as keyof typeof BuildInterfaces.BuildReason];
+        }
+
+        const result = await client.queueBuild({
+          definitionId: typedArgs.definitionId,
+          sourceBranch: typedArgs.sourceBranch,
+          parameters: typedArgs.parameters,
+          reason: buildReason,
+          demands: typedArgs.demands,
+          queueId: typedArgs.queueId,
+        });
+
+        if (!result.success) {
+          return formatErrorResponse(result.error);
+        }
+
+        // Format the queued build response
+        const build = result.data;
+        const response = {
+          id: build.id,
+          buildNumber: build.buildNumber,
+          status: mapBuildStatus(build.status),
+          reason: mapBuildReason(build.reason),
+          queueTime: build.queueTime,
+          sourceBranch: build.sourceBranch,
+          sourceVersion: build.sourceVersion,
+          definition: {
+            id: build.definition?.id,
+            name: build.definition?.name,
+          },
+          project: build.project?.name,
+          queue: build.queue ? {
+            id: build.queue.id,
+            name: build.queue.name,
+          } : undefined,
+          requestedBy: build.requestedBy?.displayName,
+          requestedFor: build.requestedFor?.displayName,
+          parameters: build.parameters ? JSON.parse(build.parameters) : undefined,
+          orchestrationPlan: build.orchestrationPlan,
+          logs: build.logs,
+          uri: build.uri,
+          url: build.url,
+        };
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(response, null, 2),
+            },
+          ],
+        };
+      },
+    },
   };
 }

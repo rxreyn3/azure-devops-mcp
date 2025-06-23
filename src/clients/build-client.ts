@@ -148,4 +148,68 @@ export class BuildClient extends AzureDevOpsBaseClient {
       }
     );
   }
+
+  async queueBuild(
+    options: {
+      definitionId: number;
+      sourceBranch?: string;
+      parameters?: { [key: string]: string };
+      reason?: BuildInterfaces.BuildReason;
+      demands?: string[];
+      queueId?: number;
+    }
+  ): Promise<ApiResult<BuildInterfaces.Build>> {
+    await this.ensureInitialized();
+    
+    return this.handleApiCall(
+      'queueBuild',
+      async () => {
+        // Convert string demands to Demand objects
+        const demands: BuildInterfaces.Demand[] | undefined = options.demands?.map(demandString => {
+          // Parse demands in format "name -equals value" or just "name"
+          const parts = demandString.split(/\s+/);
+          if (parts.length >= 3 && parts[1] === '-equals') {
+            return {
+              name: parts[0],
+              value: parts.slice(2).join(' ')
+            };
+          }
+          return {
+            name: demandString,
+            value: undefined
+          };
+        });
+
+        // Create a minimal build object with required properties
+        const build: BuildInterfaces.Build = {
+          definition: {
+            id: options.definitionId
+          },
+          sourceBranch: options.sourceBranch,
+          reason: options.reason || BuildInterfaces.BuildReason.Manual,
+          parameters: options.parameters ? JSON.stringify(options.parameters) : undefined,
+          demands
+        };
+
+        // Add queue if specified
+        if (options.queueId !== undefined) {
+          build.queue = {
+            id: options.queueId
+          };
+        }
+        
+        const result = await this.buildApi!.queueBuild(
+          build,
+          this.config.project,
+          true // ignoreWarnings
+        );
+        
+        if (!result) {
+          throw new Error('Failed to queue build - no response from API');
+        }
+        
+        return result;
+      }
+    );
+  }
 }
