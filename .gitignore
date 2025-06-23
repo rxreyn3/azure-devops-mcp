@@ -67,6 +67,7 @@ logs/
 
 # Session files
 session_*.md
+sessions/
 
 # MCP configuration with credentials
 .mcp.json
