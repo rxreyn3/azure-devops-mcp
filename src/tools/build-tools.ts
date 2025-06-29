@@ -56,6 +56,11 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
               result: mapTaskResult(job.result),
               percentComplete: job.percentComplete,
               id: job.id,
+              log: job.log ? {
+                id: job.log.id,
+                type: job.log.type,
+                url: job.log.url,
+              } : undefined,
             })),
           tasks: result.data.records
             ?.filter(r => r.type === 'Task')
@@ -68,6 +73,11 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
               percentComplete: task.percentComplete,
               parentId: task.parentId,
               id: task.id,
+              log: task.log ? {
+                id: task.log.id,
+                type: task.log.type,
+                url: task.log.url,
+              } : undefined,
             })),
           summary: {
             totalRecords: result.data.records?.length || 0,
@@ -428,6 +438,69 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
           logs: build.logs,
           uri: build.uri,
           url: build.url,
+        };
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(response, null, 2),
+            },
+          ],
+        };
+      },
+    },
+
+    build_download_job_logs: {
+      tool: {
+        name: 'build_download_job_logs',
+        description: 'Download logs for a specific job from a build by job name. Saves the log content to a file on the local filesystem.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            buildId: {
+              type: 'number',
+              description: 'The ID of the build',
+            },
+            jobName: {
+              type: 'string',
+              description: 'The name of the job to download logs for (e.g., "GPU and System Diagnostics")',
+            },
+            outputPath: {
+              type: 'string',
+              description: 'The file path where the log should be saved (e.g., "./logs/job.log")',
+            },
+          },
+          required: ['buildId', 'jobName', 'outputPath'],
+        },
+      },
+      handler: async (args: unknown) => {
+        const typedArgs = args as {
+          buildId: number;
+          jobName: string;
+          outputPath: string;
+        };
+
+        const result = await client.downloadJobLogByName(
+          typedArgs.buildId,
+          typedArgs.jobName,
+          typedArgs.outputPath
+        );
+
+        if (!result.success) {
+          return formatErrorResponse(result.error);
+        }
+
+        const response = {
+          message: `Successfully downloaded logs for job "${typedArgs.jobName}"`,
+          savedTo: result.data.savedPath,
+          fileSize: result.data.fileSize,
+          jobDetails: {
+            jobName: result.data.jobName,
+            jobId: result.data.jobId,
+            logId: result.data.logId,
+            duration: result.data.duration,
+          },
         };
 
         return {
