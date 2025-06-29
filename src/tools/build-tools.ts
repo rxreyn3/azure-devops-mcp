@@ -513,5 +513,121 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
         };
       },
     },
+
+    build_list_artifacts: {
+      tool: {
+        name: 'build_list_artifacts',
+        description: 'List all artifacts available for a specific build. Shows artifact names, types, and metadata.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            buildId: {
+              type: 'number',
+              description: 'The ID of the build',
+            },
+          },
+          required: ['buildId'],
+        },
+      },
+      handler: async (args: unknown) => {
+        const typedArgs = args as {
+          buildId: number;
+        };
+
+        const result = await client.listArtifacts(typedArgs.buildId);
+
+        if (!result.success) {
+          return formatErrorResponse(result.error);
+        }
+
+        // Format the artifacts for display
+        const artifacts = result.data.map(artifact => ({
+          id: artifact.id,
+          name: artifact.name,
+          source: artifact.source,
+          downloadUrl: artifact.resource?.downloadUrl,
+          type: artifact.resource?.type,
+          data: artifact.resource?.data,
+          properties: artifact.resource?.properties,
+        }));
+
+        const response = {
+          buildId: typedArgs.buildId,
+          artifactCount: artifacts.length,
+          artifacts: artifacts,
+        };
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(response, null, 2),
+            },
+          ],
+        };
+      },
+    },
+
+    build_download_artifact: {
+      tool: {
+        name: 'build_download_artifact',
+        description: 'Download a specific artifact from a build by artifact name. Saves the artifact as a ZIP file.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            buildId: {
+              type: 'number',
+              description: 'The ID of the build',
+            },
+            artifactName: {
+              type: 'string',
+              description: 'The name of the artifact to download (e.g., "RenderLogs")',
+            },
+            outputPath: {
+              type: 'string',
+              description: 'The file path where the artifact should be saved (e.g., "./artifacts/" or "./artifacts/render.zip")',
+            },
+          },
+          required: ['buildId', 'artifactName', 'outputPath'],
+        },
+      },
+      handler: async (args: unknown) => {
+        const typedArgs = args as {
+          buildId: number;
+          artifactName: string;
+          outputPath: string;
+        };
+
+        const result = await client.downloadArtifact(
+          typedArgs.buildId,
+          typedArgs.artifactName,
+          typedArgs.outputPath
+        );
+
+        if (!result.success) {
+          return formatErrorResponse(result.error);
+        }
+
+        const response = {
+          message: `Successfully downloaded artifact "${typedArgs.artifactName}"`,
+          savedTo: result.data.savedPath,
+          fileSize: result.data.fileSize,
+          artifactDetails: {
+            artifactName: result.data.artifactName,
+            artifactId: result.data.artifactId,
+            format: 'ZIP archive',
+          },
+        };
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(response, null, 2),
+            },
+          ],
+        };
+      },
+    },
   };
 }

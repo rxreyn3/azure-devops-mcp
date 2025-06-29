@@ -224,6 +224,18 @@ These tools work with project-scoped PATs:
   - Validates job completion status before downloading
   - Returns saved file path, size, job details, and duration
 
+- **`build_list_artifacts`** - List all artifacts available for a specific build (requires Build read)
+  - Required: buildId
+  - Returns artifact names, IDs, types, and download URLs
+  - Shows metadata about published build artifacts
+
+- **`build_download_artifact`** - Download a specific artifact from a build by name (requires Build read)
+  - Required: buildId, artifactName (e.g., "RenderLogs"), outputPath
+  - Downloads artifacts as ZIP files
+  - Streams content for efficient memory usage with large artifacts
+  - Smart filename generation when outputPath is a directory
+  - Returns saved file path, size, and artifact details
+
 ## Example Interactions
 
 Ask your AI assistant questions like:
@@ -239,6 +251,8 @@ Ask your AI assistant questions like:
 - "Launch the nightly build with custom branch refs/heads/feature/test"
 - "Download the logs for GPU and System Diagnostics from build 5782897"
 - "Save the job logs for 'Test 3: With Render Optimizations' to ./logs/"
+- "What artifacts are available for build 5782897?"
+- "Download the RenderLogs artifact from build 5782897"
 
 ## Error Handling
 

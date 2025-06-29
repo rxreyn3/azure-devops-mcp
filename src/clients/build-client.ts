@@ -2,7 +2,7 @@ import * as BuildInterfaces from 'azure-devops-node-api/interfaces/BuildInterfac
 import { IBuildApi } from 'azure-devops-node-api/BuildApi.js';
 import { PagedList } from 'azure-devops-node-api/interfaces/common/VSSInterfaces.js';
 import { AzureDevOpsBaseClient } from './ado-base-client.js';
-import { ApiResult, JobLogDownloadResult } from '../types/index.js';
+import { ApiResult, JobLogDownloadResult, ArtifactDownloadResult } from '../types/index.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { pipeline } from 'node:stream/promises';
@@ -315,6 +315,94 @@ export class BuildClient extends AzureDevOpsBaseClient {
           jobId: jobRecord.id!,
           logId: logId,
           duration
+        };
+      }
+    );
+  }
+
+  async listArtifacts(
+    buildId: number
+  ): Promise<ApiResult<BuildInterfaces.BuildArtifact[]>> {
+    await this.ensureInitialized();
+    
+    return this.handleApiCall(
+      'listArtifacts',
+      async () => {
+        const artifacts = await this.buildApi!.getArtifacts(
+          this.config.project,
+          buildId
+        );
+        
+        if (!artifacts || artifacts.length === 0) {
+          return [];
+        }
+        
+        return artifacts;
+      }
+    );
+  }
+
+  async downloadArtifact(
+    buildId: number,
+    artifactName: string,
+    outputPath: string
+  ): Promise<ApiResult<ArtifactDownloadResult>> {
+    await this.ensureInitialized();
+    
+    return this.handleApiCall(
+      'downloadArtifact',
+      async () => {
+        // First, verify the artifact exists
+        const artifacts = await this.buildApi!.getArtifacts(
+          this.config.project,
+          buildId
+        );
+        
+        const artifact = artifacts.find(a => a.name === artifactName);
+        if (!artifact) {
+          throw new Error(`No artifact found with name "${artifactName}" in build ${buildId}`);
+        }
+        
+        // Get the artifact content as a zip stream
+        const artifactStream = await this.buildApi!.getArtifactContentZip(
+          this.config.project,
+          buildId,
+          artifactName
+        );
+        
+        // Ensure output directory exists
+        const outputDir = path.dirname(outputPath);
+        await fs.promises.mkdir(outputDir, { recursive: true });
+        
+        // Generate filename if outputPath is a directory
+        let finalPath = outputPath;
+        const isDirectory = outputPath.endsWith('/') || outputPath.endsWith('\\');
+        if (isDirectory || (await fs.promises.stat(outputPath).catch(() => null))?.isDirectory()) {
+          const sanitizedArtifactName = artifactName.replace(/[^a-zA-Z0-9-_]/g, '-');
+          const timestamp = new Date().toISOString().split('T')[0];
+          const filename = `build-${buildId}-${sanitizedArtifactName}-${timestamp}.zip`;
+          finalPath = path.join(outputPath, filename);
+        }
+        
+        // Ensure .zip extension
+        if (!finalPath.toLowerCase().endsWith('.zip')) {
+          finalPath += '.zip';
+        }
+        
+        // Create write stream
+        const writeStream = fs.createWriteStream(finalPath);
+        
+        // Stream the artifact to file
+        await pipeline(artifactStream, writeStream);
+        
+        // Get file stats
+        const stats = await fs.promises.stat(finalPath);
+        
+        return {
+          savedPath: finalPath,
+          fileSize: stats.size,
+          artifactName: artifactName,
+          artifactId: artifact.id!
         };
       }
     );
