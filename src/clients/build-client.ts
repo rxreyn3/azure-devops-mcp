@@ -2,7 +2,10 @@ import * as BuildInterfaces from 'azure-devops-node-api/interfaces/BuildInterfac
 import { IBuildApi } from 'azure-devops-node-api/BuildApi.js';
 import { PagedList } from 'azure-devops-node-api/interfaces/common/VSSInterfaces.js';
 import { AzureDevOpsBaseClient } from './ado-base-client.js';
-import { ApiResult } from '../types/index.js';
+import { ApiResult, JobLogDownloadResult } from '../types/index.js';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { pipeline } from 'node:stream/promises';
 
 export class BuildClient extends AzureDevOpsBaseClient {
   private buildApi: IBuildApi | null = null;
@@ -209,6 +212,110 @@ export class BuildClient extends AzureDevOpsBaseClient {
         }
         
         return result;
+      }
+    );
+  }
+
+  async downloadJobLogByName(
+    buildId: number,
+    jobName: string,
+    outputPath: string
+  ): Promise<ApiResult<JobLogDownloadResult>> {
+    await this.ensureInitialized();
+    
+    return this.handleApiCall(
+      'downloadJobLogByName',
+      async () => {
+        // First, get the timeline to find the job
+        const timeline = await this.buildApi!.getBuildTimeline(
+          this.config.project,
+          buildId
+        );
+        
+        if (!timeline || !timeline.records) {
+          throw new Error(`No timeline found for build ${buildId}`);
+        }
+        
+        // Find the job by name
+        const jobRecord = timeline.records.find(
+          record => record.type === 'Job' && record.name === jobName
+        );
+        
+        if (!jobRecord) {
+          throw new Error(`No job found with name "${jobName}" in build ${buildId}`);
+        }
+        
+        // Check if job is completed
+        if (jobRecord.state !== BuildInterfaces.TimelineRecordState.Completed) {
+          const stateMap = {
+            [BuildInterfaces.TimelineRecordState.Pending]: 'pending',
+            [BuildInterfaces.TimelineRecordState.InProgress]: 'in progress',
+          };
+          const state = stateMap[jobRecord.state!] || 'unknown';
+          throw new Error(
+            `Job "${jobName}" is still ${state}. Logs are only available after job completion.`
+          );
+        }
+        
+        // Check if log is available
+        if (!jobRecord.log?.id) {
+          throw new Error(`Job "${jobName}" has no log available`);
+        }
+        
+        const logId = jobRecord.log.id;
+        
+        // Get the log stream
+        const logStream = await this.buildApi!.getBuildLog(
+          this.config.project,
+          buildId,
+          logId
+        );
+        
+        // Ensure output directory exists
+        const outputDir = path.dirname(outputPath);
+        await fs.promises.mkdir(outputDir, { recursive: true });
+        
+        // Generate filename if outputPath is a directory
+        let finalPath = outputPath;
+        const isDirectory = outputPath.endsWith('/') || outputPath.endsWith('\\');
+        if (isDirectory || (await fs.promises.stat(outputPath).catch(() => null))?.isDirectory()) {
+          const sanitizedJobName = jobName.replace(/[^a-zA-Z0-9-_]/g, '-');
+          const timestamp = new Date().toISOString().split('T')[0];
+          const filename = `build-${buildId}-${sanitizedJobName}-${timestamp}.log`;
+          finalPath = path.join(outputPath, filename);
+        }
+        
+        // Create write stream
+        const writeStream = fs.createWriteStream(finalPath);
+        
+        // Stream the log to file
+        await pipeline(logStream, writeStream);
+        
+        // Get file stats
+        const stats = await fs.promises.stat(finalPath);
+        
+        // Calculate duration if available
+        let duration: string | undefined;
+        if (jobRecord.startTime && jobRecord.finishTime) {
+          const start = new Date(jobRecord.startTime);
+          const finish = new Date(jobRecord.finishTime);
+          const durationMs = finish.getTime() - start.getTime();
+          const seconds = Math.floor(durationMs / 1000);
+          const minutes = Math.floor(seconds / 60);
+          const remainingSeconds = seconds % 60;
+          duration = minutes > 0 
+            ? `${minutes}m ${remainingSeconds}s`
+            : `${seconds}s`;
+        }
+        
+        return {
+          savedPath: finalPath,
+          fileSize: stats.size,
+          jobName: jobName,
+          jobId: jobRecord.id!,
+          logId: logId,
+          duration
+        };
       }
     );
   }

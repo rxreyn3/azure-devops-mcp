@@ -217,6 +217,13 @@ These tools work with project-scoped PATs:
   - Optional: sourceBranch, parameters (key-value pairs), reason, demands, queueId
   - Returns the queued build details including ID and status
 
+- **`build_download_job_logs`** - Download logs for a specific job from a build by job name (requires Build read)
+  - Required: buildId, jobName (e.g., "GPU and System Diagnostics"), outputPath
+  - Streams log content to file for efficient memory usage
+  - Smart filename generation when outputPath is a directory
+  - Validates job completion status before downloading
+  - Returns saved file path, size, job details, and duration
+
 ## Example Interactions
 
 Ask your AI assistant questions like:
@@ -230,6 +237,8 @@ Ask your AI assistant questions like:
 - "List failed builds between 2024-01-15 and 2024-01-20"
 - "Queue a build for pipeline X with parameter Y=Z"
 - "Launch the nightly build with custom branch refs/heads/feature/test"
+- "Download the logs for GPU and System Diagnostics from build 5782897"
+- "Save the job logs for 'Test 3: With Render Optimizations' to ./logs/"
 
 ## Error Handling
 

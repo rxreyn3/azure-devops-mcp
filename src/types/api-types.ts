@@ -48,3 +48,12 @@ export type ApiError = PermissionError | { type: 'not_found' | 'api_error'; mess
 export type ApiResult<T> =
   | { success: true; data: T }
   | { success: false; error: ApiError };
+
+export interface JobLogDownloadResult {
+  savedPath: string;
+  fileSize: number;
+  jobName: string;
+  jobId: string;
+  logId: number;
+  duration?: string;
+}
