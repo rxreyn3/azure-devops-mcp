@@ -2,31 +2,15 @@
 '@rxreyn3/azure-devops-mcp': minor
 ---
 
-Add Pipeline artifact download tools with enhanced UX and bug fixes
+Add Pipeline artifact download tools with improved UX
 
-This release adds artifact download functionality using the modern Pipeline API with several improvements:
+Adds two new MCP tools for working with Azure DevOps build artifacts:
 
-**New Features:**
-- **`build_list_artifacts`**: List all artifacts available for a specific build
-  - Shows artifact names, types, and metadata
-  - Displays both Pipeline and Container artifact types
-  
-- **`build_download_artifact`**: Download Pipeline artifacts using signed URLs
-  - Only supports Pipeline artifacts (created with PublishPipelineArtifact task)
-  - Uses temporary signed URLs for secure downloads
-  - Downloads artifacts as ZIP files to local filesystem
+- `build_list_artifacts` - Lists all artifacts for a build, showing names, types, and metadata
+- `build_download_artifact` - Downloads Pipeline artifacts as ZIP files using signed URLs
 
-**Improvements:**
-- **Auto-fetch definition ID**: The `definitionId` parameter is now optional - it will be automatically fetched if not provided
-- **Natural workflow**: Users can download artifacts with just a build ID
-- **Fixed directory creation**: Paths like `./artifacts/` now properly create the directory instead of using current directory
+The download tool now automatically fetches the definition ID if not provided, eliminating the need for users to manually look up definition IDs. This creates a more natural workflow where users can download artifacts with just a build ID.
 
-**Bug Fixes:**
-- Fixed directory creation logic in both `downloadArtifact` and `downloadJobLogByName` methods
-- Fixed artifact type detection (Pipeline artifacts report as "PipelineArtifact" not "Container")
+Also fixes a directory creation bug where paths like `./artifacts/` would fail to create the intended directory.
 
-**Example usage:**
-- "What artifacts are available for build 5783734?"
-- "Download the RenderLogs artifact from build 5783734" (no definition ID needed!)
-
-Requires "Build (read)" permission on the PAT.
+Note: Only Pipeline artifacts (created with PublishPipelineArtifact task) are supported. Container artifacts will return an error.
