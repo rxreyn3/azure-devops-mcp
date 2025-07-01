@@ -229,10 +229,11 @@ These tools work with project-scoped PATs:
   - Returns artifact names, IDs, types, and download URLs
   - Shows metadata about published build artifacts
 
-- **`build_download_artifact`** - Download a specific artifact from a build by name (requires Build read)
+- **`build_download_artifact`** - Download a Pipeline artifact from a build using signed URLs (requires Build read)
   - Required: buildId, artifactName (e.g., "RenderLogs"), outputPath
-  - Downloads artifacts as ZIP files
-  - Streams content for efficient memory usage with large artifacts
+  - Optional: definitionId (from build.definition.id) - will be fetched automatically if not provided
+  - Only supports Pipeline artifacts (created with PublishPipelineArtifact task)
+  - Downloads artifacts as ZIP files using temporary signed URLs
   - Smart filename generation when outputPath is a directory
   - Returns saved file path, size, and artifact details
 

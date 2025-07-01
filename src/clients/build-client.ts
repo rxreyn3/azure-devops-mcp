@@ -1,18 +1,25 @@
 import * as BuildInterfaces from 'azure-devops-node-api/interfaces/BuildInterfaces.js';
 import { IBuildApi } from 'azure-devops-node-api/BuildApi.js';
+import * as PipelinesInterfaces from 'azure-devops-node-api/interfaces/PipelinesInterfaces.js';
+import { IPipelinesApi } from 'azure-devops-node-api/PipelinesApi.js';
 import { PagedList } from 'azure-devops-node-api/interfaces/common/VSSInterfaces.js';
 import { AzureDevOpsBaseClient } from './ado-base-client.js';
 import { ApiResult, JobLogDownloadResult, ArtifactDownloadResult } from '../types/index.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { pipeline } from 'node:stream/promises';
+import https from 'node:https';
 
 export class BuildClient extends AzureDevOpsBaseClient {
   private buildApi: IBuildApi | null = null;
+  private pipelinesApi: IPipelinesApi | null = null;
 
   protected async ensureInitialized(): Promise<void> {
     if (!this.buildApi) {
       this.buildApi = await this.connection.getBuildApi();
+    }
+    if (!this.pipelinesApi) {
+      this.pipelinesApi = await this.connection.getPipelinesApi();
     }
   }
 
@@ -271,14 +278,30 @@ export class BuildClient extends AzureDevOpsBaseClient {
           logId
         );
         
-        // Ensure output directory exists
-        const outputDir = path.dirname(outputPath);
+        // Determine the directory to create
+        let outputDir: string;
+        const isDirectoryPath = outputPath.endsWith('/') || outputPath.endsWith('\\');
+        
+        if (isDirectoryPath) {
+          // Path explicitly indicates a directory
+          outputDir = outputPath;
+        } else {
+          // Path might be a file or existing directory
+          const stats = await fs.promises.stat(outputPath).catch(() => null);
+          if (stats?.isDirectory()) {
+            outputDir = outputPath;
+          } else {
+            // It's a file path, get the parent directory
+            outputDir = path.dirname(outputPath);
+          }
+        }
+        
+        // Create the directory
         await fs.promises.mkdir(outputDir, { recursive: true });
         
         // Generate filename if outputPath is a directory
         let finalPath = outputPath;
-        const isDirectory = outputPath.endsWith('/') || outputPath.endsWith('\\');
-        if (isDirectory || (await fs.promises.stat(outputPath).catch(() => null))?.isDirectory()) {
+        if (isDirectoryPath || (await fs.promises.stat(outputPath).catch(() => null))?.isDirectory()) {
           const sanitizedJobName = jobName.replace(/[^a-zA-Z0-9-_]/g, '-');
           const timestamp = new Date().toISOString().split('T')[0];
           const filename = `build-${buildId}-${sanitizedJobName}-${timestamp}.log`;
@@ -320,6 +343,28 @@ export class BuildClient extends AzureDevOpsBaseClient {
     );
   }
 
+  async getBuild(
+    buildId: number
+  ): Promise<ApiResult<BuildInterfaces.Build>> {
+    await this.ensureInitialized();
+    
+    return this.handleApiCall(
+      'getBuild',
+      async () => {
+        const build = await this.buildApi!.getBuild(
+          this.config.project,
+          buildId
+        );
+        
+        if (!build) {
+          throw new Error(`Build not found with ID ${buildId}`);
+        }
+        
+        return build;
+      }
+    );
+  }
+
   async listArtifacts(
     buildId: number
   ): Promise<ApiResult<BuildInterfaces.BuildArtifact[]>> {
@@ -344,6 +389,7 @@ export class BuildClient extends AzureDevOpsBaseClient {
 
   async downloadArtifact(
     buildId: number,
+    definitionId: number | undefined,
     artifactName: string,
     outputPath: string
   ): Promise<ApiResult<ArtifactDownloadResult>> {
@@ -352,7 +398,24 @@ export class BuildClient extends AzureDevOpsBaseClient {
     return this.handleApiCall(
       'downloadArtifact',
       async () => {
-        // First, verify the artifact exists
+        // Auto-fetch definition ID if not provided
+        let finalDefinitionId = definitionId;
+        if (!finalDefinitionId) {
+          const build = await this.buildApi!.getBuild(
+            this.config.project,
+            buildId
+          );
+          
+          finalDefinitionId = build.definition?.id;
+          if (!finalDefinitionId) {
+            throw new Error(
+              `Could not determine definition ID for build ${buildId}. ` +
+              `The build may not have an associated definition.`
+            );
+          }
+        }
+        
+        // First, verify the artifact exists and check its type
         const artifacts = await this.buildApi!.getArtifacts(
           this.config.project,
           buildId
@@ -363,21 +426,51 @@ export class BuildClient extends AzureDevOpsBaseClient {
           throw new Error(`No artifact found with name "${artifactName}" in build ${buildId}`);
         }
         
-        // Get the artifact content as a zip stream
-        const artifactStream = await this.buildApi!.getArtifactContentZip(
+        // Check if this is a Pipeline artifact (type === "PipelineArtifact")
+        if (artifact.resource?.type !== 'PipelineArtifact') {
+          throw new Error(
+            `Only Pipeline artifacts are supported. Artifact "${artifactName}" is of type "${artifact.resource?.type}". ` +
+            `Pipeline artifacts are created using the PublishPipelineArtifact task.`
+          );
+        }
+        
+        // Use PipelinesApi to get the artifact with signed URL
+        const pipelineArtifact = await this.pipelinesApi!.getArtifact(
           this.config.project,
-          buildId,
-          artifactName
+          finalDefinitionId,  // pipelineId
+          buildId,            // runId
+          artifactName,
+          PipelinesInterfaces.GetArtifactExpandOptions.SignedContent
         );
         
-        // Ensure output directory exists
-        const outputDir = path.dirname(outputPath);
+        if (!pipelineArtifact.signedContent?.url) {
+          throw new Error(`Failed to get download URL for artifact "${artifactName}"`);
+        }
+        
+        // Determine the directory to create
+        let outputDir: string;
+        const isDirectoryPath = outputPath.endsWith('/') || outputPath.endsWith('\\');
+        
+        if (isDirectoryPath) {
+          // Path explicitly indicates a directory
+          outputDir = outputPath;
+        } else {
+          // Path might be a file or existing directory
+          const stats = await fs.promises.stat(outputPath).catch(() => null);
+          if (stats?.isDirectory()) {
+            outputDir = outputPath;
+          } else {
+            // It's a file path, get the parent directory
+            outputDir = path.dirname(outputPath);
+          }
+        }
+        
+        // Create the directory
         await fs.promises.mkdir(outputDir, { recursive: true });
         
         // Generate filename if outputPath is a directory
         let finalPath = outputPath;
-        const isDirectory = outputPath.endsWith('/') || outputPath.endsWith('\\');
-        if (isDirectory || (await fs.promises.stat(outputPath).catch(() => null))?.isDirectory()) {
+        if (isDirectoryPath || (await fs.promises.stat(outputPath).catch(() => null))?.isDirectory()) {
           const sanitizedArtifactName = artifactName.replace(/[^a-zA-Z0-9-_]/g, '-');
           const timestamp = new Date().toISOString().split('T')[0];
           const filename = `build-${buildId}-${sanitizedArtifactName}-${timestamp}.zip`;
@@ -389,11 +482,28 @@ export class BuildClient extends AzureDevOpsBaseClient {
           finalPath += '.zip';
         }
         
-        // Create write stream
+        // Download from signed URL
+        const downloadUrl = pipelineArtifact.signedContent.url;
         const writeStream = fs.createWriteStream(finalPath);
         
-        // Stream the artifact to file
-        await pipeline(artifactStream, writeStream);
+        await new Promise<void>((resolve, reject) => {
+          https.get(downloadUrl, (response) => {
+            if (response.statusCode !== 200) {
+              reject(new Error(`Failed to download artifact: HTTP ${response.statusCode}`));
+              return;
+            }
+            
+            response.pipe(writeStream);
+            
+            writeStream.on('finish', () => {
+              writeStream.close();
+              resolve();
+            });
+            
+            writeStream.on('error', reject);
+            response.on('error', reject);
+          }).on('error', reject);
+        });
         
         // Get file stats
         const stats = await fs.promises.stat(finalPath);

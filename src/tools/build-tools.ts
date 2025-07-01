@@ -571,17 +571,21 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
     build_download_artifact: {
       tool: {
         name: 'build_download_artifact',
-        description: 'Download a specific artifact from a build by artifact name. Saves the artifact as a ZIP file.',
+        description: 'Download a Pipeline artifact from a build using signed URLs. Only supports Pipeline artifacts (created with PublishPipelineArtifact task). Saves as a ZIP file.',
         inputSchema: {
           type: 'object',
           properties: {
             buildId: {
               type: 'number',
-              description: 'The ID of the build',
+              description: 'The ID of the build (also known as run ID)',
+            },
+            definitionId: {
+              type: 'number',
+              description: 'The build definition ID (from build.definition.id). If not provided, will be fetched automatically.',
             },
             artifactName: {
               type: 'string',
-              description: 'The name of the artifact to download (e.g., "RenderLogs")',
+              description: 'The name of the Pipeline artifact to download (e.g., "RenderLogs")',
             },
             outputPath: {
               type: 'string',
@@ -594,12 +598,14 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
       handler: async (args: unknown) => {
         const typedArgs = args as {
           buildId: number;
+          definitionId?: number;
           artifactName: string;
           outputPath: string;
         };
 
         const result = await client.downloadArtifact(
           typedArgs.buildId,
+          typedArgs.definitionId,
           typedArgs.artifactName,
           typedArgs.outputPath
         );
