@@ -57,3 +57,10 @@ export interface JobLogDownloadResult {
   logId: number;
   duration?: string;
 }
+
+export interface ArtifactDownloadResult {
+  savedPath: string;
+  fileSize: number;
+  artifactName: string;
+  artifactId: number;
+}
