@@ -64,3 +64,16 @@ export interface ArtifactDownloadResult {
   artifactName: string;
   artifactId: number;
 }
+
+export interface PipelineRunResult {
+  id: number;
+  pipelineId: number;
+  pipelineName: string;
+  state: string;
+  result?: string;
+  createdDate: Date;
+  finishedDate?: Date;
+  url: string;
+  name: string;
+  templateParameters?: { [key: string]: any };
+}

@@ -42,6 +42,27 @@ The server uses the Model Context Protocol SDK to:
 - Handle tool invocations via `CallToolRequestSchema`
 - Provide typed tool schemas with Zod validation
 
+## Parameter Handling
+
+### Build API vs Pipeline API
+Azure DevOps provides two different APIs for queuing builds/pipelines, each with different parameter handling:
+
+**Build API** (`/build/builds` endpoint):
+- Uses `parameters` field as a **JSON string**
+- All parameter values must be strings in the tool input
+- Example: `{"parameters": "{\"MaxScenesToRender\": \"10\"}"}`
+- Parameters are displayed as quoted strings in Azure DevOps UI
+
+**Pipeline API** (`/pipelines/{id}/runs` endpoint):
+- Uses `templateParameters` as a direct object
+- Currently not implemented in this MCP server
+- Would allow native JSON types in parameters
+
+### Important Notes
+- Even though the Build API accepts a JSON string that could contain numbers, Azure DevOps treats all parameter values as strings
+- Numeric parameters must be quoted (e.g., `"10"` not `10`) to ensure they're processed correctly
+- This is validated by the tool schema which enforces string values for all parameters
+
 ## TypeScript Configuration
 - Target: ES2022 with NodeNext modules
 - Strict mode enabled

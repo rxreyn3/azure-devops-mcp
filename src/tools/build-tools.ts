@@ -1,10 +1,11 @@
 import { ToolDefinition } from '../types/tool-types.js';
 import { BuildClient } from '../clients/build-client.js';
+import { PipelineClient } from '../clients/pipeline-client.js';
 import { formatErrorResponse } from '../utils/formatters.js';
 import { mapBuildStatus, mapBuildResult, mapTimelineRecordState, mapTaskResult, mapBuildReason } from '../utils/enum-mappers.js';
 import * as BuildInterfaces from 'azure-devops-node-api/interfaces/BuildInterfaces.js';
 
-export function createBuildTools(client: BuildClient): Record<string, ToolDefinition> {
+export function createBuildTools(buildClient: BuildClient, pipelineClient: PipelineClient): Record<string, ToolDefinition> {
   return {
     build_get_timeline: {
       tool: {
@@ -27,7 +28,7 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
       },
       handler: async (args: unknown) => {
         const typedArgs = args as { buildId: number; timelineId?: string };
-        const result = await client.getBuildTimeline(
+        const result = await buildClient.getBuildTimeline(
           typedArgs.buildId,
           typedArgs.timelineId
         );
@@ -209,7 +210,7 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
           });
         }
 
-        const result = await client.getBuilds({
+        const result = await buildClient.getBuilds({
           definitionIds: typedArgs.definitionId ? [typedArgs.definitionId] : undefined,
           definitionNameFilter: typedArgs.definitionNameFilter,
           statusFilter,
@@ -298,7 +299,7 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
           nameFilter?: string;
         };
 
-        const result = await client.getDefinitions({
+        const result = await buildClient.getDefinitions({
           nameFilter: typedArgs.nameFilter,
           top: typedArgs.limit || 50,
           continuationToken: typedArgs.continuationToken,
@@ -358,26 +359,14 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
             },
             parameters: {
               type: 'object',
-              description: 'Build parameters as key-value pairs. These override default pipeline variables.',
+              description: 'Pipeline parameters as key-value pairs. These override default pipeline variables.',
               additionalProperties: {
-                type: 'string',
+                oneOf: [
+                  { type: 'string' },
+                  { type: 'number' },
+                  { type: 'boolean' }
+                ]
               },
-            },
-            reason: {
-              type: 'string',
-              enum: ['Manual', 'IndividualCI', 'BatchedCI', 'Schedule', 'UserCreated', 'PullRequest'],
-              description: 'The reason for the build (default: Manual)',
-            },
-            demands: {
-              type: 'array',
-              items: {
-                type: 'string',
-              },
-              description: 'Agent demands for the build (e.g., ["Agent.OS -equals Windows_NT"])',
-            },
-            queueId: {
-              type: 'number',
-              description: 'Specific agent queue ID to use. If not specified, uses the default queue.',
             },
           },
           required: ['definitionId'],
@@ -387,57 +376,43 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
         const typedArgs = args as {
           definitionId: number;
           sourceBranch?: string;
-          parameters?: { [key: string]: string };
-          reason?: string;
-          demands?: string[];
-          queueId?: number;
+          parameters?: { [key: string]: any };
         };
 
-        // Map string reason to enum
-        let buildReason: BuildInterfaces.BuildReason | undefined;
-        if (typedArgs.reason) {
-          buildReason = BuildInterfaces.BuildReason[typedArgs.reason as keyof typeof BuildInterfaces.BuildReason];
-        }
-
-        const result = await client.queueBuild({
-          definitionId: typedArgs.definitionId,
+        // Use Pipeline API to run the pipeline
+        const result = await pipelineClient.runPipeline({
+          pipelineId: typedArgs.definitionId,
           sourceBranch: typedArgs.sourceBranch,
-          parameters: typedArgs.parameters,
-          reason: buildReason,
-          demands: typedArgs.demands,
-          queueId: typedArgs.queueId,
+          templateParameters: typedArgs.parameters,
         });
 
         if (!result.success) {
           return formatErrorResponse(result.error);
         }
 
-        // Format the queued build response
-        const build = result.data;
+        // Format the pipeline run response to match build response format
+        const run = result.data;
         const response = {
-          id: build.id,
-          buildNumber: build.buildNumber,
-          status: mapBuildStatus(build.status),
-          reason: mapBuildReason(build.reason),
-          queueTime: build.queueTime,
-          sourceBranch: build.sourceBranch,
-          sourceVersion: build.sourceVersion,
+          id: run.id,
+          buildNumber: run.name,
+          status: run.state,
+          reason: 'Manual',
+          queueTime: run.createdDate,
+          sourceBranch: typedArgs.sourceBranch,
+          sourceVersion: undefined,
           definition: {
-            id: build.definition?.id,
-            name: build.definition?.name,
+            id: run.pipelineId,
+            name: run.pipelineName,
           },
-          project: build.project?.name,
-          queue: build.queue ? {
-            id: build.queue.id,
-            name: build.queue.name,
-          } : undefined,
-          requestedBy: build.requestedBy?.displayName,
-          requestedFor: build.requestedFor?.displayName,
-          parameters: build.parameters ? JSON.parse(build.parameters) : undefined,
-          orchestrationPlan: build.orchestrationPlan,
-          logs: build.logs,
-          uri: build.uri,
-          url: build.url,
+          project: undefined,
+          queue: undefined,
+          requestedBy: undefined,
+          requestedFor: undefined,
+          parameters: run.templateParameters,
+          orchestrationPlan: undefined,
+          logs: undefined,
+          uri: undefined,
+          url: run.url,
         };
 
         return {
@@ -481,7 +456,7 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
           outputPath: string;
         };
 
-        const result = await client.downloadJobLogByName(
+        const result = await buildClient.downloadJobLogByName(
           typedArgs.buildId,
           typedArgs.jobName,
           typedArgs.outputPath
@@ -534,7 +509,7 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
           buildId: number;
         };
 
-        const result = await client.listArtifacts(typedArgs.buildId);
+        const result = await buildClient.listArtifacts(typedArgs.buildId);
 
         if (!result.success) {
           return formatErrorResponse(result.error);
@@ -603,7 +578,7 @@ export function createBuildTools(client: BuildClient): Record<string, ToolDefini
           outputPath: string;
         };
 
-        const result = await client.downloadArtifact(
+        const result = await buildClient.downloadArtifact(
           typedArgs.buildId,
           typedArgs.definitionId,
           typedArgs.artifactName,
