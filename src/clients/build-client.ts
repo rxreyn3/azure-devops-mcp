@@ -159,6 +159,22 @@ export class BuildClient extends AzureDevOpsBaseClient {
     );
   }
 
+  /**
+   * Queue a new build using the Azure DevOps Build API
+   * 
+   * @param options Build queue options
+   * @param options.parameters Build parameters as key-value pairs. 
+   *                          IMPORTANT: All values must be strings. Even numeric values 
+   *                          must be passed as strings (e.g., "10" not 10) because 
+   *                          Azure DevOps treats all pipeline parameters as strings.
+   *                          These are serialized to JSON and sent in the API request.
+   * 
+   * @remarks
+   * This uses the traditional Build API (/build/builds endpoint) which requires
+   * parameters to be passed as a JSON string. For native type support, consider
+   * the newer Pipeline API (/pipelines/{id}/runs endpoint) which accepts
+   * templateParameters as a direct object (not yet implemented in this client).
+   */
   async queueBuild(
     options: {
       definitionId: number;
@@ -197,6 +213,7 @@ export class BuildClient extends AzureDevOpsBaseClient {
           },
           sourceBranch: options.sourceBranch,
           reason: options.reason || BuildInterfaces.BuildReason.Manual,
+          // Parameters must be serialized as a JSON string for the Build API
           parameters: options.parameters ? JSON.stringify(options.parameters) : undefined,
           demands
         };

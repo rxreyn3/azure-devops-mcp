@@ -7,6 +7,7 @@ import {
 import { Config } from './config.js';
 import { TaskAgentClient } from './clients/task-agent-client.js';
 import { BuildClient } from './clients/build-client.js';
+import { PipelineClient } from './clients/pipeline-client.js';
 import { createToolRegistry } from './tools/index.js';
 import packageJson from '../package.json' with { type: 'json' };
 
@@ -14,14 +15,16 @@ export class AzureDevOpsMCPServer {
   private server: Server;
   private taskAgentClient: TaskAgentClient;
   private buildClient: BuildClient;
+  private pipelineClient: PipelineClient;
   private toolRegistry: ReturnType<typeof createToolRegistry>;
 
   constructor(config: Config) {
     this.taskAgentClient = new TaskAgentClient(config);
     this.buildClient = new BuildClient(config);
+    this.pipelineClient = new PipelineClient(config);
     
     // Initialize tools registry with all clients
-    this.toolRegistry = createToolRegistry(this.taskAgentClient, this.buildClient);
+    this.toolRegistry = createToolRegistry(this.taskAgentClient, this.buildClient, this.pipelineClient);
     
     this.server = new Server(
       {
