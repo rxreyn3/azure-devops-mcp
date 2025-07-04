@@ -224,6 +224,16 @@ These tools work with project-scoped PATs:
   - Validates job completion status before downloading
   - Returns saved file path, size, job details, and duration
 
+- **`build_download_logs_by_name`** - Download logs for a stage, job, or task by searching for its name in the build timeline (requires Build read)
+  - Required: buildId, name (e.g., "Deploy", "Trigger Async Shift Upload"), outputPath
+  - Optional: exactMatch (default: true) - set to false for partial/case-insensitive matching
+  - Automatically detects whether the name refers to a stage, job, or task
+  - For stages/phases: Downloads all child job logs into an organized directory structure
+  - For jobs: Downloads the job log (same as build_download_job_logs)
+  - For tasks: Downloads the individual task log with parent job context
+  - Handles multiple matches by showing all options and requesting clarification
+  - Returns downloaded log paths, sizes, and matched record details
+
 - **`build_list_artifacts`** - List all artifacts available for a specific build (requires Build read)
   - Required: buildId
   - Returns artifact names, IDs, types, and download URLs
