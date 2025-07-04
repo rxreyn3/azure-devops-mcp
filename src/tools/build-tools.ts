@@ -610,5 +610,74 @@ export function createBuildTools(buildClient: BuildClient, pipelineClient: Pipel
         };
       },
     },
+
+    build_download_logs_by_name: {
+      tool: {
+        name: 'build_download_logs_by_name',
+        description: 'Download logs for a stage, job, or task by searching for its name in the build timeline. Handles stages by downloading all child job logs into an organized directory structure.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            buildId: {
+              type: 'number',
+              description: 'The ID of the build',
+            },
+            name: {
+              type: 'string',
+              description: 'The name of the stage, job, or task to download logs for (e.g., "Deploy", "Trigger Async Shift Upload", "Publish Pipeline Artifact")',
+            },
+            outputPath: {
+              type: 'string',
+              description: 'The file or directory path where logs should be saved. For stages, a subdirectory will be created.',
+            },
+            exactMatch: {
+              type: 'boolean',
+              description: 'Whether to use exact name matching (default: true). Set to false for partial/case-insensitive matching.',
+              default: true,
+            },
+          },
+          required: ['buildId', 'name', 'outputPath'],
+        },
+      },
+      handler: async (args: unknown) => {
+        const typedArgs = args as {
+          buildId: number;
+          name: string;
+          outputPath: string;
+          exactMatch?: boolean;
+        };
+
+        const result = await buildClient.downloadLogsByName(
+          typedArgs.buildId,
+          typedArgs.name,
+          typedArgs.outputPath,
+          typedArgs.exactMatch ?? true
+        );
+
+        if (!result.success) {
+          return formatErrorResponse(result.error);
+        }
+
+        const response = {
+          message: `Successfully downloaded logs for ${result.data.type} "${typedArgs.name}"`,
+          recordType: result.data.type,
+          matchedRecord: result.data.matchedRecords[0],
+          downloadedLogs: result.data.downloadedLogs,
+          summary: {
+            totalLogsDownloaded: result.data.downloadedLogs.length,
+            totalSize: result.data.downloadedLogs.reduce((sum, log) => sum + log.fileSize, 0),
+          },
+        };
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(response, null, 2),
+            },
+          ],
+        };
+      },
+    },
   };
 }

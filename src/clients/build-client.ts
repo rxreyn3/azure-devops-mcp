@@ -534,4 +534,245 @@ export class BuildClient extends AzureDevOpsBaseClient {
       }
     );
   }
+
+  async downloadLogsByName(
+    buildId: number,
+    name: string,
+    outputPath: string,
+    exactMatch: boolean = true
+  ): Promise<ApiResult<{
+    type: 'Stage' | 'Phase' | 'Job' | 'Task';
+    matchedRecords: Array<{
+      name: string;
+      type: string;
+      id: string;
+      parentName?: string;
+    }>;
+    downloadedLogs: Array<{
+      name: string;
+      savedPath: string;
+      fileSize: number;
+    }>;
+  }>> {
+    await this.ensureInitialized();
+    
+    return this.handleApiCall(
+      'downloadLogsByName',
+      async () => {
+        // Get the timeline to search for matching records
+        const timeline = await this.buildApi!.getBuildTimeline(
+          this.config.project,
+          buildId
+        );
+        
+        if (!timeline || !timeline.records) {
+          throw new Error(`No timeline found for build ${buildId}`);
+        }
+        
+        // Find all matching records by name
+        const matchingRecords = timeline.records.filter(record => {
+          if (exactMatch) {
+            return record.name === name;
+          } else {
+            return record.name?.toLowerCase().includes(name.toLowerCase());
+          }
+        });
+        
+        if (matchingRecords.length === 0) {
+          throw new Error(`No timeline record found with name "${name}" in build ${buildId}`);
+        }
+        
+        // If multiple matches, return them for user clarification
+        if (matchingRecords.length > 1) {
+          const matches = matchingRecords.map(r => {
+            const parent = timeline.records!.find(p => p.id === r.parentId);
+            return {
+              name: r.name!,
+              type: r.type!,
+              id: r.id!,
+              parentName: parent?.name
+            };
+          });
+          
+          throw new Error(
+            `Multiple records found matching "${name}":\n` +
+            matches.map(m => 
+              `- ${m.name} (${m.type})${m.parentName ? ` under ${m.parentName}` : ''}`
+            ).join('\n') +
+            '\n\nPlease use exact match or be more specific.'
+          );
+        }
+        
+        const record = matchingRecords[0];
+        const recordType = record.type as 'Stage' | 'Phase' | 'Job' | 'Task';
+        const downloadedLogs: Array<{
+          name: string;
+          savedPath: string;
+          fileSize: number;
+        }> = [];
+        
+        // Handle based on record type
+        if (recordType === 'Job') {
+          // For jobs, use existing logic
+          if (record.state !== BuildInterfaces.TimelineRecordState.Completed) {
+            throw new Error(
+              `Job "${name}" is not completed. Logs are only available after completion.`
+            );
+          }
+          
+          if (!record.log?.id) {
+            throw new Error(`Job "${name}" has no log available`);
+          }
+          
+          const result = await this.downloadSingleLog(
+            buildId,
+            record.log.id,
+            name,
+            outputPath
+          );
+          
+          downloadedLogs.push(result);
+          
+        } else if (recordType === 'Task') {
+          // For tasks, download individual task log
+          if (record.state !== BuildInterfaces.TimelineRecordState.Completed) {
+            throw new Error(
+              `Task "${name}" is not completed. Logs are only available after completion.`
+            );
+          }
+          
+          if (!record.log?.id) {
+            throw new Error(`Task "${name}" has no log available`);
+          }
+          
+          // Find parent job name for context
+          const parentJob = timeline.records!.find(r => r.id === record.parentId);
+          const contextName = parentJob ? `${parentJob.name}-${name}` : name;
+          
+          const result = await this.downloadSingleLog(
+            buildId,
+            record.log.id,
+            contextName,
+            outputPath
+          );
+          
+          downloadedLogs.push(result);
+          
+        } else if (recordType === 'Stage' || recordType === 'Phase') {
+          // For stages/phases, download all child job logs
+          const childJobs = this.findChildJobs(timeline.records!, record.id!);
+          
+          if (childJobs.length === 0) {
+            throw new Error(`${recordType} "${name}" has no child jobs with logs`);
+          }
+          
+          // Create directory for stage/phase logs
+          const sanitizedName = name.replace(/[^a-zA-Z0-9-_]/g, '-');
+          const stageDir = path.join(outputPath, `${sanitizedName}-logs`);
+          await fs.promises.mkdir(stageDir, { recursive: true });
+          
+          // Download each job's logs
+          for (const job of childJobs) {
+            if (job.state === BuildInterfaces.TimelineRecordState.Completed && job.log?.id) {
+              const result = await this.downloadSingleLog(
+                buildId,
+                job.log.id,
+                job.name!,
+                stageDir
+              );
+              downloadedLogs.push(result);
+            }
+          }
+          
+          if (downloadedLogs.length === 0) {
+            throw new Error(
+              `${recordType} "${name}" has child jobs but none have completed logs available`
+            );
+          }
+        }
+        
+        return {
+          type: recordType,
+          matchedRecords: [{
+            name: record.name!,
+            type: record.type!,
+            id: record.id!
+          }],
+          downloadedLogs
+        };
+      }
+    );
+  }
+  
+  private findChildJobs(
+    records: BuildInterfaces.TimelineRecord[],
+    parentId: string
+  ): BuildInterfaces.TimelineRecord[] {
+    const jobs: BuildInterfaces.TimelineRecord[] = [];
+    
+    // Find direct child jobs
+    const directChildJobs = records.filter(
+      r => r.parentId === parentId && r.type === 'Job'
+    );
+    jobs.push(...directChildJobs);
+    
+    // Find child phases/stages and recursively get their jobs
+    const childContainers = records.filter(
+      r => r.parentId === parentId && (r.type === 'Phase' || r.type === 'Stage')
+    );
+    
+    for (const container of childContainers) {
+      const nestedJobs = this.findChildJobs(records, container.id!);
+      jobs.push(...nestedJobs);
+    }
+    
+    return jobs;
+  }
+  
+  private async downloadSingleLog(
+    buildId: number,
+    logId: number,
+    contextName: string,
+    outputPath: string
+  ): Promise<{
+    name: string;
+    savedPath: string;
+    fileSize: number;
+  }> {
+    // Get the log stream
+    const logStream = await this.buildApi!.getBuildLog(
+      this.config.project,
+      buildId,
+      logId
+    );
+    
+    // Determine output path
+    let finalPath = outputPath;
+    const stats = await fs.promises.stat(outputPath).catch(() => null);
+    
+    if (!stats || stats.isDirectory()) {
+      // Generate filename
+      const sanitizedName = contextName.replace(/[^a-zA-Z0-9-_]/g, '-');
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `build-${buildId}-${sanitizedName}-${timestamp}.log`;
+      finalPath = path.join(outputPath, filename);
+    }
+    
+    // Create parent directory if needed
+    const dir = path.dirname(finalPath);
+    await fs.promises.mkdir(dir, { recursive: true });
+    
+    // Stream to file
+    const writeStream = fs.createWriteStream(finalPath);
+    await pipeline(logStream, writeStream);
+    
+    // Get file stats
+    const fileStats = await fs.promises.stat(finalPath);
+    
+    return {
+      name: contextName,
+      savedPath: finalPath,
+      fileSize: fileStats.size
+    };
+  }
 }
