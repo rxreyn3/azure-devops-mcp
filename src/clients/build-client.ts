@@ -9,6 +9,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import https from 'node:https';
+import { TempManager } from '../utils/temp-manager.js';
 
 export class BuildClient extends AzureDevOpsBaseClient {
   private buildApi: IBuildApi | null = null;
@@ -243,7 +244,7 @@ export class BuildClient extends AzureDevOpsBaseClient {
   async downloadJobLogByName(
     buildId: number,
     jobName: string,
-    outputPath: string
+    outputPath?: string
   ): Promise<ApiResult<JobLogDownloadResult>> {
     await this.ensureInitialized();
     
@@ -295,34 +296,44 @@ export class BuildClient extends AzureDevOpsBaseClient {
           logId
         );
         
-        // Determine the directory to create
-        let outputDir: string;
-        const isDirectoryPath = outputPath.endsWith('/') || outputPath.endsWith('\\');
+        let finalPath: string;
+        let isTemporary = false;
         
-        if (isDirectoryPath) {
-          // Path explicitly indicates a directory
-          outputDir = outputPath;
-        } else {
-          // Path might be a file or existing directory
-          const stats = await fs.promises.stat(outputPath).catch(() => null);
-          if (stats?.isDirectory()) {
-            outputDir = outputPath;
-          } else {
-            // It's a file path, get the parent directory
-            outputDir = path.dirname(outputPath);
-          }
-        }
-        
-        // Create the directory
-        await fs.promises.mkdir(outputDir, { recursive: true });
-        
-        // Generate filename if outputPath is a directory
-        let finalPath = outputPath;
-        if (isDirectoryPath || (await fs.promises.stat(outputPath).catch(() => null))?.isDirectory()) {
+        if (!outputPath) {
+          // Use temp manager for storage
+          const tempManager = TempManager.getInstance();
           const sanitizedJobName = jobName.replace(/[^a-zA-Z0-9-_]/g, '-');
           const timestamp = new Date().toISOString().split('T')[0];
           const filename = `build-${buildId}-${sanitizedJobName}-${timestamp}.log`;
-          finalPath = path.join(outputPath, filename);
+          
+          finalPath = await tempManager.getDownloadPath('logs', buildId, filename);
+          isTemporary = true;
+        } else {
+          // Use provided path
+          const isDirectoryPath = outputPath.endsWith('/') || outputPath.endsWith('\\');
+          
+          if (isDirectoryPath) {
+            // Path explicitly indicates a directory
+            await fs.promises.mkdir(outputPath, { recursive: true });
+            const sanitizedJobName = jobName.replace(/[^a-zA-Z0-9-_]/g, '-');
+            const timestamp = new Date().toISOString().split('T')[0];
+            const filename = `build-${buildId}-${sanitizedJobName}-${timestamp}.log`;
+            finalPath = path.join(outputPath, filename);
+          } else {
+            // Path might be a file or existing directory
+            const stats = await fs.promises.stat(outputPath).catch(() => null);
+            if (stats?.isDirectory()) {
+              const sanitizedJobName = jobName.replace(/[^a-zA-Z0-9-_]/g, '-');
+              const timestamp = new Date().toISOString().split('T')[0];
+              const filename = `build-${buildId}-${sanitizedJobName}-${timestamp}.log`;
+              finalPath = path.join(outputPath, filename);
+            } else {
+              // It's a file path, ensure parent directory exists
+              const outputDir = path.dirname(outputPath);
+              await fs.promises.mkdir(outputDir, { recursive: true });
+              finalPath = outputPath;
+            }
+          }
         }
         
         // Create write stream
@@ -354,7 +365,9 @@ export class BuildClient extends AzureDevOpsBaseClient {
           jobName: jobName,
           jobId: jobRecord.id!,
           logId: logId,
-          duration
+          duration,
+          downloadedAt: new Date().toISOString(),
+          isTemporary
         };
       }
     );
@@ -408,7 +421,7 @@ export class BuildClient extends AzureDevOpsBaseClient {
     buildId: number,
     definitionId: number | undefined,
     artifactName: string,
-    outputPath: string
+    outputPath?: string
   ): Promise<ApiResult<ArtifactDownloadResult>> {
     await this.ensureInitialized();
     
@@ -464,39 +477,49 @@ export class BuildClient extends AzureDevOpsBaseClient {
           throw new Error(`Failed to get download URL for artifact "${artifactName}"`);
         }
         
-        // Determine the directory to create
-        let outputDir: string;
-        const isDirectoryPath = outputPath.endsWith('/') || outputPath.endsWith('\\');
+        let finalPath: string;
+        let isTemporary = false;
         
-        if (isDirectoryPath) {
-          // Path explicitly indicates a directory
-          outputDir = outputPath;
-        } else {
-          // Path might be a file or existing directory
-          const stats = await fs.promises.stat(outputPath).catch(() => null);
-          if (stats?.isDirectory()) {
-            outputDir = outputPath;
-          } else {
-            // It's a file path, get the parent directory
-            outputDir = path.dirname(outputPath);
-          }
-        }
-        
-        // Create the directory
-        await fs.promises.mkdir(outputDir, { recursive: true });
-        
-        // Generate filename if outputPath is a directory
-        let finalPath = outputPath;
-        if (isDirectoryPath || (await fs.promises.stat(outputPath).catch(() => null))?.isDirectory()) {
+        if (!outputPath) {
+          // Use temp manager
+          const tempManager = TempManager.getInstance();
           const sanitizedArtifactName = artifactName.replace(/[^a-zA-Z0-9-_]/g, '-');
           const timestamp = new Date().toISOString().split('T')[0];
           const filename = `build-${buildId}-${sanitizedArtifactName}-${timestamp}.zip`;
-          finalPath = path.join(outputPath, filename);
-        }
-        
-        // Ensure .zip extension
-        if (!finalPath.toLowerCase().endsWith('.zip')) {
-          finalPath += '.zip';
+          
+          finalPath = await tempManager.getDownloadPath('artifacts', buildId, filename);
+          isTemporary = true;
+        } else {
+          // Determine the directory to create
+          const isDirectoryPath = outputPath.endsWith('/') || outputPath.endsWith('\\');
+          
+          if (isDirectoryPath) {
+            // Path explicitly indicates a directory
+            await fs.promises.mkdir(outputPath, { recursive: true });
+            const sanitizedArtifactName = artifactName.replace(/[^a-zA-Z0-9-_]/g, '-');
+            const timestamp = new Date().toISOString().split('T')[0];
+            const filename = `build-${buildId}-${sanitizedArtifactName}-${timestamp}.zip`;
+            finalPath = path.join(outputPath, filename);
+          } else {
+            // Path might be a file or existing directory
+            const stats = await fs.promises.stat(outputPath).catch(() => null);
+            if (stats?.isDirectory()) {
+              const sanitizedArtifactName = artifactName.replace(/[^a-zA-Z0-9-_]/g, '-');
+              const timestamp = new Date().toISOString().split('T')[0];
+              const filename = `build-${buildId}-${sanitizedArtifactName}-${timestamp}.zip`;
+              finalPath = path.join(outputPath, filename);
+            } else {
+              // It's a file path, ensure parent directory exists
+              const outputDir = path.dirname(outputPath);
+              await fs.promises.mkdir(outputDir, { recursive: true });
+              finalPath = outputPath;
+            }
+          }
+          
+          // Ensure .zip extension
+          if (!finalPath.toLowerCase().endsWith('.zip')) {
+            finalPath += '.zip';
+          }
         }
         
         // Download from signed URL
@@ -529,7 +552,9 @@ export class BuildClient extends AzureDevOpsBaseClient {
           savedPath: finalPath,
           fileSize: stats.size,
           artifactName: artifactName,
-          artifactId: artifact.id!
+          artifactId: artifact.id!,
+          downloadedAt: new Date().toISOString(),
+          isTemporary
         };
       }
     );
@@ -538,7 +563,7 @@ export class BuildClient extends AzureDevOpsBaseClient {
   async downloadLogsByName(
     buildId: number,
     name: string,
-    outputPath: string,
+    outputPath?: string,
     exactMatch: boolean = true
   ): Promise<ApiResult<{
     type: 'Stage' | 'Phase' | 'Job' | 'Task';
@@ -552,6 +577,8 @@ export class BuildClient extends AzureDevOpsBaseClient {
       name: string;
       savedPath: string;
       fileSize: number;
+      downloadedAt: string;
+      isTemporary: boolean;
     }>;
   }>> {
     await this.ensureInitialized();
@@ -609,6 +636,8 @@ export class BuildClient extends AzureDevOpsBaseClient {
           name: string;
           savedPath: string;
           fileSize: number;
+          downloadedAt: string;
+          isTemporary: boolean;
         }> = [];
         
         // Handle based on record type
@@ -668,8 +697,13 @@ export class BuildClient extends AzureDevOpsBaseClient {
           
           // Create directory for stage/phase logs
           const sanitizedName = name.replace(/[^a-zA-Z0-9-_]/g, '-');
-          const stageDir = path.join(outputPath, `${sanitizedName}-logs`);
-          await fs.promises.mkdir(stageDir, { recursive: true });
+          let stageDir: string | undefined;
+          
+          if (outputPath) {
+            stageDir = path.join(outputPath, `${sanitizedName}-logs`);
+            await fs.promises.mkdir(stageDir, { recursive: true });
+          }
+          // If no outputPath, downloadSingleLog will handle temp directory creation
           
           // Download each job's logs
           for (const job of childJobs) {
@@ -696,7 +730,8 @@ export class BuildClient extends AzureDevOpsBaseClient {
           matchedRecords: [{
             name: record.name!,
             type: record.type!,
-            id: record.id!
+            id: record.id!,
+            parentName: undefined
           }],
           downloadedLogs
         };
@@ -733,11 +768,13 @@ export class BuildClient extends AzureDevOpsBaseClient {
     buildId: number,
     logId: number,
     contextName: string,
-    outputPath: string
+    outputPath?: string
   ): Promise<{
     name: string;
     savedPath: string;
     fileSize: number;
+    downloadedAt: string;
+    isTemporary: boolean;
   }> {
     // Get the log stream
     const logStream = await this.buildApi!.getBuildLog(
@@ -746,21 +783,36 @@ export class BuildClient extends AzureDevOpsBaseClient {
       logId
     );
     
-    // Determine output path
-    let finalPath = outputPath;
-    const stats = await fs.promises.stat(outputPath).catch(() => null);
+    let finalPath: string;
+    let isTemporary = false;
     
-    if (!stats || stats.isDirectory()) {
-      // Generate filename
+    if (!outputPath) {
+      // Use temp manager
+      const tempManager = TempManager.getInstance();
       const sanitizedName = contextName.replace(/[^a-zA-Z0-9-_]/g, '-');
       const timestamp = new Date().toISOString().split('T')[0];
       const filename = `build-${buildId}-${sanitizedName}-${timestamp}.log`;
-      finalPath = path.join(outputPath, filename);
+      
+      finalPath = await tempManager.getDownloadPath('logs', buildId, filename);
+      isTemporary = true;
+    } else {
+      // Determine output path
+      const stats = await fs.promises.stat(outputPath).catch(() => null);
+      
+      if (!stats || stats.isDirectory()) {
+        // Generate filename
+        const sanitizedName = contextName.replace(/[^a-zA-Z0-9-_]/g, '-');
+        const timestamp = new Date().toISOString().split('T')[0];
+        const filename = `build-${buildId}-${sanitizedName}-${timestamp}.log`;
+        finalPath = path.join(outputPath, filename);
+      } else {
+        finalPath = outputPath;
+      }
+      
+      // Create parent directory if needed
+      const dir = path.dirname(finalPath);
+      await fs.promises.mkdir(dir, { recursive: true });
     }
-    
-    // Create parent directory if needed
-    const dir = path.dirname(finalPath);
-    await fs.promises.mkdir(dir, { recursive: true });
     
     // Stream to file
     const writeStream = fs.createWriteStream(finalPath);
@@ -772,7 +824,9 @@ export class BuildClient extends AzureDevOpsBaseClient {
     return {
       name: contextName,
       savedPath: finalPath,
-      fileSize: fileStats.size
+      fileSize: fileStats.size,
+      downloadedAt: new Date().toISOString(),
+      isTemporary
     };
   }
 }
