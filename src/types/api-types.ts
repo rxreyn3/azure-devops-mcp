@@ -56,6 +56,8 @@ export interface JobLogDownloadResult {
   jobId: string;
   logId: number;
   duration?: string;
+  downloadedAt: string;
+  isTemporary: boolean;
 }
 
 export interface ArtifactDownloadResult {
@@ -63,6 +65,8 @@ export interface ArtifactDownloadResult {
   fileSize: number;
   artifactName: string;
   artifactId: number;
+  downloadedAt: string;
+  isTemporary: boolean;
 }
 
 export interface PipelineRunResult {

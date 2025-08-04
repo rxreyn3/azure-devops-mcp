@@ -218,21 +218,22 @@ These tools work with project-scoped PATs:
   - Returns the queued build details including ID and status
 
 - **`build_download_job_logs`** - Download logs for a specific job from a build by job name (requires Build read)
-  - Required: buildId, jobName (e.g., "GPU and System Diagnostics"), outputPath
+  - Required: buildId, jobName (e.g., "GPU and System Diagnostics")
+  - Optional: outputPath (if not provided, saves to managed temp directory)
   - Streams log content to file for efficient memory usage
   - Smart filename generation when outputPath is a directory
   - Validates job completion status before downloading
-  - Returns saved file path, size, job details, and duration
+  - Returns saved file path, size, job details, duration, and whether file is temporary
 
 - **`build_download_logs_by_name`** - Download logs for a stage, job, or task by searching for its name in the build timeline (requires Build read)
-  - Required: buildId, name (e.g., "Deploy", "Trigger Async Shift Upload"), outputPath
-  - Optional: exactMatch (default: true) - set to false for partial/case-insensitive matching
+  - Required: buildId, name (e.g., "Deploy", "Trigger Async Shift Upload")
+  - Optional: outputPath (if not provided, saves to managed temp directory), exactMatch (default: true) - set to false for partial/case-insensitive matching
   - Automatically detects whether the name refers to a stage, job, or task
   - For stages/phases: Downloads all child job logs into an organized directory structure
   - For jobs: Downloads the job log (same as build_download_job_logs)
   - For tasks: Downloads the individual task log with parent job context
   - Handles multiple matches by showing all options and requesting clarification
-  - Returns downloaded log paths, sizes, and matched record details
+  - Returns downloaded log paths, sizes, matched record details, and whether files are temporary
 
 - **`build_list_artifacts`** - List all artifacts available for a specific build (requires Build read)
   - Required: buildId
@@ -240,12 +241,43 @@ These tools work with project-scoped PATs:
   - Shows metadata about published build artifacts
 
 - **`build_download_artifact`** - Download a Pipeline artifact from a build using signed URLs (requires Build read)
-  - Required: buildId, artifactName (e.g., "RenderLogs"), outputPath
-  - Optional: definitionId (from build.definition.id) - will be fetched automatically if not provided
+  - Required: buildId, artifactName (e.g., "RenderLogs")
+  - Optional: outputPath (if not provided, saves to managed temp directory), definitionId (from build.definition.id) - will be fetched automatically if not provided
   - Only supports Pipeline artifacts (created with PublishPipelineArtifact task)
   - Downloads artifacts as ZIP files using temporary signed URLs
   - Smart filename generation when outputPath is a directory
-  - Returns saved file path, size, and artifact details
+  - Returns saved file path, size, artifact details, and whether file is temporary
+
+### File Management Tools
+
+These tools help manage downloaded files in the temporary directory:
+
+- **`list_downloads`** - List all files downloaded to the temporary directory
+  - Shows all logs and artifacts downloaded by this MCP server
+  - Returns file paths, sizes, download times, and age
+  - Groups files by category (logs/artifacts) and build ID
+  - Shows the temporary directory location
+
+- **`cleanup_downloads`** - Remove old downloaded files from the temporary directory
+  - Optional: olderThanHours (default: 24) - remove files older than this many hours
+  - Returns number of files removed and space saved
+  - Reports any errors encountered during cleanup
+
+- **`get_download_location`** - Get information about the temporary directory
+  - Shows the temp directory path
+  - Reports total size and file count
+  - Shows information about the oldest file
+
+## Temporary File Handling
+
+When download tools (`build_download_job_logs`, `build_download_logs_by_name`, `build_download_artifact`) are called without an `outputPath`, files are automatically saved to a managed temporary directory:
+
+- **Structure**: `/tmp/ado-mcp-server-{pid}/downloads/{category}/{buildId}/{filename}`
+- **Automatic Cleanup**: Old temp directories from previous sessions are cleaned on startup
+- **Process Isolation**: Each server instance uses its own temp directory
+- **File Persistence**: Files persist until manually cleaned up using `cleanup_downloads` or server restart
+
+This prevents workspace pollution and makes it easier for AI models to track downloaded files.
 
 ## Example Interactions
 

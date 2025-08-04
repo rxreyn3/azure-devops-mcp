@@ -9,6 +9,7 @@ import { TaskAgentClient } from './clients/task-agent-client.js';
 import { BuildClient } from './clients/build-client.js';
 import { PipelineClient } from './clients/pipeline-client.js';
 import { createToolRegistry } from './tools/index.js';
+import { TempManager } from './utils/temp-manager.js';
 import packageJson from '../package.json' with { type: 'json' };
 
 export class AzureDevOpsMCPServer {
@@ -65,6 +66,20 @@ export class AzureDevOpsMCPServer {
   }
 
   async start(): Promise<void> {
+    // Initialize temp manager and cleanup old files
+    const tempManager = TempManager.getInstance();
+    await tempManager.initialize();
+    
+    // Clean up files older than 24 hours on startup
+    try {
+      const cleanupResult = await tempManager.cleanup(24);
+      if (cleanupResult.filesRemoved > 0) {
+        console.error(`Cleaned up ${cleanupResult.filesRemoved} old temporary file(s)`);
+      }
+    } catch (error) {
+      console.error('Failed to cleanup old temporary files:', error);
+    }
+    
     const transport = new StdioServerTransport();
     
     await this.server.connect(transport);

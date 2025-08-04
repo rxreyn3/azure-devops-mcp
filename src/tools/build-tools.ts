@@ -4,6 +4,7 @@ import { PipelineClient } from '../clients/pipeline-client.js';
 import { formatErrorResponse } from '../utils/formatters.js';
 import { mapBuildStatus, mapBuildResult, mapTimelineRecordState, mapTaskResult, mapBuildReason } from '../utils/enum-mappers.js';
 import * as BuildInterfaces from 'azure-devops-node-api/interfaces/BuildInterfaces.js';
+import { TempManager } from '../utils/temp-manager.js';
 
 export function createBuildTools(buildClient: BuildClient, pipelineClient: PipelineClient): Record<string, ToolDefinition> {
   return {
@@ -443,17 +444,17 @@ export function createBuildTools(buildClient: BuildClient, pipelineClient: Pipel
             },
             outputPath: {
               type: 'string',
-              description: 'The file path where the log should be saved (e.g., "./logs/job.log")',
+              description: 'Optional file or directory path where the log should be saved. If not provided, saves to a managed temporary directory and returns the full path.',
             },
           },
-          required: ['buildId', 'jobName', 'outputPath'],
+          required: ['buildId', 'jobName'],
         },
       },
       handler: async (args: unknown) => {
         const typedArgs = args as {
           buildId: number;
           jobName: string;
-          outputPath: string;
+          outputPath?: string;
         };
 
         const result = await buildClient.downloadJobLogByName(
@@ -469,7 +470,9 @@ export function createBuildTools(buildClient: BuildClient, pipelineClient: Pipel
         const response = {
           message: `Successfully downloaded logs for job "${typedArgs.jobName}"`,
           savedTo: result.data.savedPath,
+          isTemporary: result.data.isTemporary,
           fileSize: result.data.fileSize,
+          downloadedAt: result.data.downloadedAt,
           jobDetails: {
             jobName: result.data.jobName,
             jobId: result.data.jobId,
@@ -564,10 +567,10 @@ export function createBuildTools(buildClient: BuildClient, pipelineClient: Pipel
             },
             outputPath: {
               type: 'string',
-              description: 'The file path where the artifact should be saved (e.g., "./artifacts/" or "./artifacts/render.zip")',
+              description: 'Optional file or directory path where the artifact should be saved. If not provided, saves to a managed temporary directory and returns the full path.',
             },
           },
-          required: ['buildId', 'artifactName', 'outputPath'],
+          required: ['buildId', 'artifactName'],
         },
       },
       handler: async (args: unknown) => {
@@ -575,7 +578,7 @@ export function createBuildTools(buildClient: BuildClient, pipelineClient: Pipel
           buildId: number;
           definitionId?: number;
           artifactName: string;
-          outputPath: string;
+          outputPath?: string;
         };
 
         const result = await buildClient.downloadArtifact(
@@ -592,7 +595,9 @@ export function createBuildTools(buildClient: BuildClient, pipelineClient: Pipel
         const response = {
           message: `Successfully downloaded artifact "${typedArgs.artifactName}"`,
           savedTo: result.data.savedPath,
+          isTemporary: result.data.isTemporary,
           fileSize: result.data.fileSize,
+          downloadedAt: result.data.downloadedAt,
           artifactDetails: {
             artifactName: result.data.artifactName,
             artifactId: result.data.artifactId,
@@ -628,7 +633,7 @@ export function createBuildTools(buildClient: BuildClient, pipelineClient: Pipel
             },
             outputPath: {
               type: 'string',
-              description: 'The file or directory path where logs should be saved. For stages, a subdirectory will be created.',
+              description: 'Optional file or directory path where logs should be saved. If not provided, saves to a managed temporary directory. For stages, a subdirectory will be created.',
             },
             exactMatch: {
               type: 'boolean',
@@ -636,14 +641,14 @@ export function createBuildTools(buildClient: BuildClient, pipelineClient: Pipel
               default: true,
             },
           },
-          required: ['buildId', 'name', 'outputPath'],
+          required: ['buildId', 'name'],
         },
       },
       handler: async (args: unknown) => {
         const typedArgs = args as {
           buildId: number;
           name: string;
-          outputPath: string;
+          outputPath?: string;
           exactMatch?: boolean;
         };
 
@@ -669,6 +674,134 @@ export function createBuildTools(buildClient: BuildClient, pipelineClient: Pipel
           },
         };
 
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(response, null, 2),
+            },
+          ],
+        };
+      },
+    },
+
+    list_downloads: {
+      tool: {
+        name: 'list_downloads',
+        description: 'List all files downloaded to the temporary directory by this MCP server, including logs and artifacts.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
+      handler: async (args: unknown) => {
+        const tempManager = TempManager.getInstance();
+        const downloads = await tempManager.listDownloads();
+        
+        const categorized = {
+          logs: downloads.filter(d => d.category === 'logs'),
+          artifacts: downloads.filter(d => d.category === 'artifacts'),
+        };
+        
+        const response = {
+          message: `Found ${downloads.length} downloaded file(s)`,
+          tempDirectory: await tempManager.getTempDir(),
+          summary: {
+            totalFiles: downloads.length,
+            totalSize: downloads.reduce((sum, d) => sum + d.size, 0),
+            logs: categorized.logs.length,
+            artifacts: categorized.artifacts.length,
+          },
+          downloads: downloads.map(d => ({
+            path: d.path,
+            category: d.category,
+            buildId: d.buildId,
+            filename: d.filename,
+            size: d.size,
+            downloadedAt: d.downloadedAt.toISOString(),
+            ageHours: Math.round(d.ageHours * 10) / 10,
+          })),
+        };
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(response, null, 2),
+            },
+          ],
+        };
+      },
+    },
+
+    cleanup_downloads: {
+      tool: {
+        name: 'cleanup_downloads',
+        description: 'Remove old downloaded files from the temporary directory.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            olderThanHours: {
+              type: 'number',
+              description: 'Remove files older than this many hours (default: 24)',
+              default: 24,
+            },
+          },
+          required: [],
+        },
+      },
+      handler: async (args: unknown) => {
+        const typedArgs = args as {
+          olderThanHours?: number;
+        };
+        
+        const tempManager = TempManager.getInstance();
+        const result = await tempManager.cleanup(typedArgs.olderThanHours ?? 24);
+        
+        const response = {
+          message: `Cleanup completed`,
+          filesRemoved: result.filesRemoved,
+          spaceSaved: result.spaceSaved,
+          errors: result.errors,
+        };
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(response, null, 2),
+            },
+          ],
+        };
+      },
+    },
+
+    get_download_location: {
+      tool: {
+        name: 'get_download_location',
+        description: 'Get information about the temporary directory where files are downloaded.',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+          required: [],
+        },
+      },
+      handler: async (args: unknown) => {
+        const tempManager = TempManager.getInstance();
+        const info = await tempManager.getTempDirInfo();
+        
+        const response = {
+          message: 'Temporary download directory information',
+          path: info.path,
+          totalSize: info.totalSize,
+          fileCount: info.fileCount,
+          oldestFile: info.oldestFile ? {
+            path: info.oldestFile.path,
+            ageHours: Math.round(info.oldestFile.age * 10) / 10,
+          } : null,
+        };
+        
         return {
           content: [
             {
