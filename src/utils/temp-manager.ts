@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { constants } from 'node:fs';
+import { constants, rmSync } from 'node:fs';
 
 export interface DownloadMetadata {
   path: string;
@@ -84,6 +84,19 @@ export class TempManager {
     buildId: number,
     filename: string
   ): Promise<string> {
+    // Validate parameters
+    if (!Number.isInteger(buildId) || buildId <= 0) {
+      throw new Error(`Invalid buildId: ${buildId}. Must be a positive integer.`);
+    }
+    
+    if (!['logs', 'artifacts'].includes(category)) {
+      throw new Error(`Invalid category: ${category}. Must be 'logs' or 'artifacts'.`);
+    }
+    
+    if (!filename || typeof filename !== 'string' || filename.trim().length === 0) {
+      throw new Error('Filename must be a non-empty string.');
+    }
+    
     if (!this.initialized) {
       await this.initialize();
     }
@@ -133,13 +146,21 @@ export class TempManager {
               }
             }
           }
-        } catch (error) {
-          // Category directory might not exist yet
+        } catch (error: any) {
+          if (error?.code === 'ENOENT') {
+            // Category directory doesn't exist yet - this is expected
+            continue;
+          }
+          console.warn(`Warning: Failed to process category ${category}:`, error.message || error);
           continue;
         }
       }
-    } catch (error) {
-      // Downloads directory might not exist
+    } catch (error: any) {
+      if (error?.code === 'ENOENT') {
+        // Downloads directory doesn't exist yet - this is expected
+        return downloads;
+      }
+      console.warn('Warning: Failed to list downloads:', error.message || error);
     }
 
     return downloads;
@@ -214,14 +235,15 @@ export class TempManager {
             const dirPath = path.join(tempRoot, entry);
             try {
               await fs.rm(dirPath, { recursive: true, force: true });
-            } catch {
-              // Ignore cleanup errors
+              console.error(`Cleaned up orphaned temp directory: ${dirPath}`);
+            } catch (error: any) {
+              console.warn(`Warning: Failed to cleanup orphaned directory ${dirPath}:`, error.message || error);
             }
           }
         }
       }
-    } catch {
-      // Ignore errors during cleanup
+    } catch (error: any) {
+      console.warn('Warning: Failed to scan for old temp directories:', error.message || error);
     }
   }
 
@@ -249,10 +271,9 @@ export class TempManager {
       // Synchronous cleanup attempt
       if (this.baseDir) {
         try {
-          const fs = require('fs');
-          fs.rmSync(this.baseDir, { recursive: true, force: true });
+          rmSync(this.baseDir, { recursive: true, force: true });
         } catch {
-          // Ignore
+          // Ignore cleanup errors on exit
         }
       }
     });

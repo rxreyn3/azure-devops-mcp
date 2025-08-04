@@ -454,7 +454,7 @@ export function createBuildTools(buildClient: BuildClient, pipelineClient: Pipel
         const typedArgs = args as {
           buildId: number;
           jobName: string;
-          outputPath: string;
+          outputPath?: string;
         };
 
         const result = await buildClient.downloadJobLogByName(
