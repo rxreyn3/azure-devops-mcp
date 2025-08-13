@@ -98,7 +98,7 @@ export const listToolsResponse: ListToolsResult = {
 export const successfulCallToolResponse: CallToolResult = {
   content: [
     {
-      type: 'text',
+      type: 'text' as const,
       text: JSON.stringify({
         success: true,
         data: {
@@ -114,7 +114,7 @@ export const successfulCallToolResponse: CallToolResult = {
 export const errorCallToolResponse: CallToolResult = {
   content: [
     {
-      type: 'text',
+      type: 'text' as const,
       text: JSON.stringify({
         success: false,
         error: {
@@ -242,7 +242,7 @@ export const malformedArgumentsToolCall: CallToolRequest = {
 export const createSuccessResponse = (data: any): CallToolResult => ({
   content: [
     {
-      type: 'text',
+      type: 'text' as const,
       text: JSON.stringify({
         success: true,
         data
@@ -254,7 +254,7 @@ export const createSuccessResponse = (data: any): CallToolResult => ({
 export const createErrorResponse = (error: any): CallToolResult => ({
   content: [
     {
-      type: 'text',
+      type: 'text' as const,
       text: JSON.stringify({
         success: false,
         error
