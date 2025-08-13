@@ -14,7 +14,7 @@
     - Add utilities for simulating different error conditions
     - _Requirements: 2.1, 2.2, 2.3_
 
-  - [ ] 2.2 Create test fixtures with realistic Azure DevOps API response data
+  - [x] 2.2 Create test fixtures with realistic Azure DevOps API response data
     - Create fixture files for queue responses, agent responses, build responses, and pipeline responses
     - Implement fixture data that covers various scenarios including edge cases
     - Add utilities for loading and customizing fixture data in tests
