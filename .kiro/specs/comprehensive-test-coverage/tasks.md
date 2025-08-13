@@ -7,8 +7,8 @@
   - Create package.json scripts for running tests and generating coverage
   - _Requirements: 1.5, 4.1, 4.4, 5.2_
 
-- [ ] 2. Create test utilities and mock infrastructure
-  - [ ] 2.1 Implement mock factory for Azure DevOps API clients
+- [-] 2. Create test utilities and mock infrastructure
+  - [x] 2.1 Implement mock factory for Azure DevOps API clients
     - Create MockFactory class with methods for creating mocked WebApi, TaskAgentApi, and BuildApi instances
     - Implement helper methods for setting up common mock responses
     - Add utilities for simulating different error conditions
