@@ -71,3 +71,7 @@ sessions/
 
 # MCP configuration with credentials
 .mcp.json
+# Testing
+coverage/
+test-results.json
+*.lcov
