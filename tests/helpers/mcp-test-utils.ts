@@ -3,15 +3,15 @@
 
 import { vi, type MockedFunction } from 'vitest';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { 
-  ListToolsRequest, 
-  ListToolsResult, 
-  CallToolRequest, 
+import {
+  ListToolsRequest,
+  ListToolsResult,
+  CallToolRequest,
   CallToolResult,
   Tool,
   JSONRPCRequest,
   JSONRPCResponse,
-  JSONRPCError
+  JSONRPCError,
 } from '@modelcontextprotocol/sdk/types.js';
 import { AzureDevOpsMCPServer } from '../../src/server.js';
 import { Config } from '../../src/config.js';
@@ -40,7 +40,7 @@ export class TestMCPServer {
 
   constructor(config: Config, options: TestMCPServerConfig = {}) {
     this.config = config;
-    
+
     if (options.mockClients) {
       // Create mocked clients for isolated testing
       this.mockTaskAgentClient = vi.mocked(new TaskAgentClient(config));
@@ -58,7 +58,7 @@ export class TestMCPServer {
     // Access the private toolRegistry through reflection for testing
     const toolRegistry = (this.server as any).toolRegistry;
     const handler = toolRegistry.handlers.get(request.params.name);
-    
+
     if (!handler) {
       throw new Error(`Unknown tool: ${request.params.name}`);
     }
@@ -98,7 +98,7 @@ export class MCPServerTestFactory {
       organization: 'https://dev.azure.com/test-org',
       project: 'test-project',
       pat: 'test-token',
-      logLevel: 'info'
+      logLevel: 'info',
     };
 
     const config = { ...defaultConfig, ...options.customConfig };
@@ -111,7 +111,7 @@ export class MCPServerTestFactory {
   static createMockedServer(customConfig?: Partial<Config>): TestMCPServer {
     return this.createTestServer({
       mockClients: true,
-      customConfig
+      customConfig,
     });
   }
 
@@ -121,7 +121,7 @@ export class MCPServerTestFactory {
   static createIntegrationServer(config: Config): TestMCPServer {
     return new TestMCPServer(config, {
       mockClients: false,
-      enableLogging: true
+      enableLogging: true,
     });
   }
 }
@@ -147,7 +147,7 @@ export class MCPMessageFactory {
       jsonrpc: '2.0',
       id: this.getNextId(),
       method: 'tools/list',
-      params: {}
+      params: {},
     };
   }
 
@@ -155,8 +155,8 @@ export class MCPMessageFactory {
    * Create a CallTool request
    */
   static createCallToolRequest(
-    toolName: string, 
-    args: Record<string, any> = {}
+    toolName: string,
+    args: Record<string, any> = {},
   ): JSONRPCRequest & CallToolRequest {
     return {
       jsonrpc: '2.0',
@@ -164,8 +164,8 @@ export class MCPMessageFactory {
       method: 'tools/call',
       params: {
         name: toolName,
-        arguments: args
-      }
+        arguments: args,
+      },
     };
   }
 
@@ -173,11 +173,9 @@ export class MCPMessageFactory {
    * Create a batch of tool call requests
    */
   static createBatchToolCalls(
-    toolCalls: Array<{ name: string; args?: Record<string, any> }>
+    toolCalls: Array<{ name: string; args?: Record<string, any> }>,
   ): Array<JSONRPCRequest & CallToolRequest> {
-    return toolCalls.map(({ name, args }) => 
-      this.createCallToolRequest(name, args)
-    );
+    return toolCalls.map(({ name, args }) => this.createCallToolRequest(name, args));
   }
 
   /**
@@ -185,7 +183,7 @@ export class MCPMessageFactory {
    */
   static createInvalidToolRequest(
     toolName: string = 'nonexistent_tool',
-    args: Record<string, any> = {}
+    args: Record<string, any> = {},
   ): JSONRPCRequest & CallToolRequest {
     return this.createCallToolRequest(toolName, args);
   }
@@ -197,7 +195,7 @@ export class MCPMessageFactory {
     return {
       jsonrpc: '2.0',
       // Missing id and method
-      params: {}
+      params: {},
     };
   }
 
@@ -211,15 +209,15 @@ export class MCPMessageFactory {
       listBuilds: this.createCallToolRequest('build_list', { top: 10 }),
       queueBuild: this.createCallToolRequest('build_queue', {
         definitionId: 1,
-        sourceBranch: 'refs/heads/main'
+        sourceBranch: 'refs/heads/main',
       }),
       findAgent: this.createCallToolRequest('org_find_agent', {
-        agentName: 'Test-Agent'
+        agentName: 'Test-Agent',
       }),
       downloadLogs: this.createCallToolRequest('build_download_job_logs', {
         buildId: 101,
-        jobName: 'Build Job'
-      })
+        jobName: 'Build Job',
+      }),
     };
   }
 }
@@ -264,7 +262,9 @@ export class MCPResponseValidator {
   /**
    * Validate ListTools response format
    */
-  static validateListToolsResponse(response: any): response is JSONRPCResponse & { result: ListToolsResult } {
+  static validateListToolsResponse(
+    response: any,
+  ): response is JSONRPCResponse & { result: ListToolsResult } {
     if (!this.validateJSONRPCResponse(response)) {
       return false;
     }
@@ -280,7 +280,9 @@ export class MCPResponseValidator {
   /**
    * Validate CallTool response format
    */
-  static validateCallToolResponse(response: any): response is JSONRPCResponse & { result: CallToolResult } {
+  static validateCallToolResponse(
+    response: any,
+  ): response is JSONRPCResponse & { result: CallToolResult } {
     if (!this.validateJSONRPCResponse(response)) {
       return false;
     }
@@ -291,10 +293,12 @@ export class MCPResponseValidator {
 
     // Validate content array
     return response.result.content.every((content: any) => {
-      return content && 
-             typeof content === 'object' && 
-             content.type === 'text' && 
-             typeof content.text === 'string';
+      return (
+        content &&
+        typeof content === 'object' &&
+        content.type === 'text' &&
+        typeof content.text === 'string'
+      );
     });
   }
 
@@ -307,17 +311,17 @@ export class MCPResponseValidator {
     }
 
     // Required fields
-    if (typeof tool.name !== 'string' || 
-        typeof tool.description !== 'string' ||
-        !tool.inputSchema) {
+    if (
+      typeof tool.name !== 'string' ||
+      typeof tool.description !== 'string' ||
+      !tool.inputSchema
+    ) {
       return false;
     }
 
     // Validate input schema
     const schema = tool.inputSchema;
-    if (schema.type !== 'object' || 
-        !schema.properties || 
-        typeof schema.properties !== 'object') {
+    if (schema.type !== 'object' || !schema.properties || typeof schema.properties !== 'object') {
       return false;
     }
 
@@ -332,7 +336,9 @@ export class MCPResponseValidator {
   /**
    * Validate error response format
    */
-  static validateErrorResponse(response: any): response is JSONRPCResponse & { error: JSONRPCError } {
+  static validateErrorResponse(
+    response: any,
+  ): response is JSONRPCResponse & { error: JSONRPCError } {
     if (!this.validateJSONRPCResponse(response)) {
       return false;
     }
@@ -342,7 +348,7 @@ export class MCPResponseValidator {
     }
 
     const error = response.error;
-    
+
     // Error must have code and message
     if (typeof error.code !== 'number' || typeof error.message !== 'string') {
       return false;
@@ -366,7 +372,7 @@ export class MCPResponseValidator {
 
     try {
       const parsed = JSON.parse(content.text);
-      
+
       // Should have success field
       if (typeof parsed.success !== 'boolean') {
         return false;
@@ -397,6 +403,9 @@ export class MCPResponseValidator {
     }
 
     const content = response.content[0];
+    if (typeof content.text !== 'string') {
+      throw new Error('Tool response content text must be a string');
+    }
     return JSON.parse(content.text);
   }
 
@@ -419,7 +428,7 @@ export class MCPResponseValidator {
    */
   static validateToolParameters(tool: Tool, parameters: Record<string, any>): boolean {
     const schema = tool.inputSchema;
-    
+
     // Check required parameters
     if (schema.required) {
       for (const required of schema.required) {
@@ -430,6 +439,10 @@ export class MCPResponseValidator {
     }
 
     // Check parameter types (basic validation)
+    if (!schema.properties) {
+      return true; // No properties to validate
+    }
+
     for (const [key, value] of Object.entries(parameters)) {
       const propertySchema = schema.properties[key];
       if (!propertySchema) {
@@ -483,7 +496,7 @@ export class MCPTestEnvironment {
       ADO_ORGANIZATION: 'https://dev.azure.com/test-org',
       ADO_PROJECT: 'test-project',
       ADO_PAT: 'test-token',
-      LOG_LEVEL: 'info'
+      LOG_LEVEL: 'info',
     };
 
     const envConfig = { ...defaultConfig, ...config };
@@ -507,7 +520,7 @@ export class MCPTestEnvironment {
    */
   static withTestEnvironment<T>(
     config: Record<string, string>,
-    testFn: () => T | Promise<T>
+    testFn: () => T | Promise<T>,
   ): Promise<T> {
     const env = new MCPTestEnvironment();
     env.setupTestEnvironment(config);
@@ -534,7 +547,9 @@ export class MCPAssertions {
   /**
    * Assert that a response is a valid ListTools response
    */
-  static assertValidListToolsResponse(response: any): asserts response is JSONRPCResponse & { result: ListToolsResult } {
+  static assertValidListToolsResponse(
+    response: any,
+  ): asserts response is JSONRPCResponse & { result: ListToolsResult } {
     if (!MCPResponseValidator.validateListToolsResponse(response)) {
       throw new Error('Invalid ListTools response format');
     }
@@ -543,7 +558,9 @@ export class MCPAssertions {
   /**
    * Assert that a response is a valid CallTool response
    */
-  static assertValidCallToolResponse(response: any): asserts response is JSONRPCResponse & { result: CallToolResult } {
+  static assertValidCallToolResponse(
+    response: any,
+  ): asserts response is JSONRPCResponse & { result: CallToolResult } {
     if (!MCPResponseValidator.validateCallToolResponse(response)) {
       throw new Error('Invalid CallTool response format');
     }
@@ -552,7 +569,9 @@ export class MCPAssertions {
   /**
    * Assert that a response is a valid error response
    */
-  static assertValidErrorResponse(response: any): asserts response is JSONRPCResponse & { error: JSONRPCError } {
+  static assertValidErrorResponse(
+    response: any,
+  ): asserts response is JSONRPCResponse & { error: JSONRPCError } {
     if (!MCPResponseValidator.validateErrorResponse(response)) {
       throw new Error('Invalid error response format');
     }
@@ -582,7 +601,7 @@ export class MCPAssertions {
    * Assert that a tool exists in the tools list
    */
   static assertToolExists(tools: Tool[], toolName: string): void {
-    const tool = tools.find(t => t.name === toolName);
+    const tool = tools.find((t) => t.name === toolName);
     if (!tool) {
       throw new Error(`Tool '${toolName}' not found in tools list`);
     }
