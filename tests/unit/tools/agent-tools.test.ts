@@ -10,7 +10,7 @@ describe('Agent Tools', () => {
 
   beforeEach(() => {
     MockFactory.resetAllMocks();
-    
+
     // Create a mock TaskAgentClient
     mockTaskAgentClient = {
       getQueues: vi.fn(),
@@ -36,7 +36,7 @@ describe('Agent Tools', () => {
                 message: 'Azure DevOps MCP server is running',
               },
               null,
-              2
+              2,
             ),
           },
         ],
@@ -52,7 +52,8 @@ describe('Agent Tools', () => {
     it('should have correct tool definition', () => {
       expect(agentTools.project_health_check.tool).toEqual({
         name: 'project_health_check',
-        description: 'Check connection to Azure DevOps and verify permissions. Requires project-scoped PAT with Agent Pools (read) permission.',
+        description:
+          'Check connection to Azure DevOps and verify permissions. Requires project-scoped PAT with Agent Pools (read) permission.',
         inputSchema: {
           type: 'object',
           properties: {},
@@ -82,7 +83,7 @@ describe('Agent Tools', () => {
                 count: 2,
               },
               null,
-              2
+              2,
             ),
           },
         ],
@@ -118,7 +119,8 @@ describe('Agent Tools', () => {
     it('should have correct tool definition', () => {
       expect(agentTools.project_list_queues.tool).toEqual({
         name: 'project_list_queues',
-        description: 'List all agent queues available in the project. Returns queue IDs, names, and pool information. Requires project-scoped PAT with Agent Pools (read) permission.',
+        description:
+          'List all agent queues available in the project. Returns queue IDs, names, and pool information. Requires project-scoped PAT with Agent Pools (read) permission.',
         inputSchema: {
           type: 'object',
           properties: {},
@@ -202,13 +204,15 @@ describe('Agent Tools', () => {
     it('should have correct tool definition', () => {
       expect(agentTools.project_get_queue.tool).toEqual({
         name: 'project_get_queue',
-        description: 'Get detailed information about a specific queue including pool details and agent count. Requires project-scoped PAT with Agent Pools (read) permission.',
+        description:
+          'Get detailed information about a specific queue including pool details and agent count. Requires project-scoped PAT with Agent Pools (read) permission.',
         inputSchema: {
           type: 'object',
           properties: {
             queueIdOrName: {
               type: 'string',
-              description: 'Queue ID (number) or name. Queue IDs are more reliable than names. Find IDs using project_list_queues.',
+              description:
+                'Queue ID (number) or name. Queue IDs are more reliable than names. Find IDs using project_list_queues.',
             },
           },
           required: ['queueIdOrName'],
@@ -271,13 +275,15 @@ describe('Agent Tools', () => {
     it('should have correct tool definition', () => {
       expect(agentTools.org_find_agent.tool).toEqual({
         name: 'org_find_agent',
-        description: 'Find which queue/pool an agent belongs to. Searches across all pools in the organization. Requires PAT with organization-level Agent Pools (read) permission.',
+        description:
+          'Find which queue/pool an agent belongs to. Searches across all pools in the organization. Requires PAT with organization-level Agent Pools (read) permission.',
         inputSchema: {
           type: 'object',
           properties: {
             agentName: {
               type: 'string',
-              description: 'Name of the agent to find. Agent names are case-sensitive. Partial matches not supported.',
+              description:
+                'Name of the agent to find. Agent names are case-sensitive. Partial matches not supported.',
             },
           },
           required: ['agentName'],
@@ -290,8 +296,12 @@ describe('Agent Tools', () => {
     it('should list agents successfully with default parameters', async () => {
       const mockAgents = MockFactory.createMockAgents(3);
       const mockResponse = {
-        agents: mockAgents.map(agent => ({
-          ...agent,
+        agents: mockAgents.map((agent) => ({
+          name: agent.name!,
+          status:
+            agent.status === TaskAgentInterfaces.TaskAgentStatus.Online ? 'Online' : 'Offline',
+          enabled: agent.enabled!,
+          version: agent.version!,
           poolName: 'Default Pool',
         })),
         continuationToken: undefined,
@@ -308,7 +318,7 @@ describe('Agent Tools', () => {
       expect(mockTaskAgentClient.getAgents).toHaveBeenCalledWith({});
 
       const expectedSummary = {
-        agents: mockResponse.agents.map(a => ({
+        agents: mockResponse.agents.map((a) => ({
           name: a.name,
           pool: a.poolName,
           status: a.status,
@@ -318,8 +328,8 @@ describe('Agent Tools', () => {
         })),
         summary: {
           total: 3,
-          online: mockResponse.agents.filter(a => a.status === 'Online').length,
-          offline: mockResponse.agents.filter(a => a.status === 'Offline').length,
+          online: 2, // Agents 0 and 2 are online (i % 2 === 0)
+          offline: 1, // Agent 1 is offline (i % 2 === 1)
           pools: ['Default Pool'],
         },
         continuationToken: undefined,
@@ -343,8 +353,12 @@ describe('Agent Tools', () => {
     it('should list agents with filtering parameters', async () => {
       const mockAgents = MockFactory.createMockAgents(2);
       const mockResponse = {
-        agents: mockAgents.map(agent => ({
-          ...agent,
+        agents: mockAgents.map((agent) => ({
+          name: agent.name!,
+          status:
+            agent.status === TaskAgentInterfaces.TaskAgentStatus.Online ? 'Online' : 'Offline',
+          enabled: agent.enabled!,
+          version: agent.version!,
           poolName: 'Test Pool',
         })),
         continuationToken: 'next-token',
@@ -369,7 +383,7 @@ describe('Agent Tools', () => {
       expect(mockTaskAgentClient.getAgents).toHaveBeenCalledWith(args);
 
       const expectedSummary = {
-        agents: mockResponse.agents.map(a => ({
+        agents: mockResponse.agents.map((a) => ({
           name: a.name,
           pool: a.poolName,
           status: a.status,
@@ -379,8 +393,8 @@ describe('Agent Tools', () => {
         })),
         summary: {
           total: 2,
-          online: mockResponse.agents.filter(a => a.status === 'Online').length,
-          offline: mockResponse.agents.filter(a => a.status === 'Offline').length,
+          online: 1, // Agent 0 is online (i % 2 === 0)
+          offline: 1, // Agent 1 is offline (i % 2 === 1)
           pools: ['Test Pool'],
         },
         continuationToken: 'next-token',
@@ -452,21 +466,25 @@ describe('Agent Tools', () => {
     it('should have correct tool definition', () => {
       expect(agentTools.org_list_agents.tool).toEqual({
         name: 'org_list_agents',
-        description: 'List agents from project pools with optional filtering. Shows agent status, version, and basic info. Requires PAT with organization-level Agent Pools (read) permission to access agent details.',
+        description:
+          'List agents from project pools with optional filtering. Shows agent status, version, and basic info. Requires PAT with organization-level Agent Pools (read) permission to access agent details.',
         inputSchema: {
           type: 'object',
           properties: {
             nameFilter: {
               type: 'string',
-              description: 'Filter agents by name (partial match supported, e.g., "BM40"). Case-insensitive. Matches anywhere in agent name.',
+              description:
+                'Filter agents by name (partial match supported, e.g., "BM40"). Case-insensitive. Matches anywhere in agent name.',
             },
             poolNameFilter: {
               type: 'string',
-              description: 'Filter by pool name (partial match supported). Case-insensitive. Useful when you have multiple pools.',
+              description:
+                'Filter by pool name (partial match supported). Case-insensitive. Useful when you have multiple pools.',
             },
             onlyOnline: {
               type: 'boolean',
-              description: 'Only show online agents (default: false). Online agents are ready to run builds immediately.',
+              description:
+                'Only show online agents (default: false). Online agents are ready to run builds immediately.',
               default: false,
             },
             limit: {
