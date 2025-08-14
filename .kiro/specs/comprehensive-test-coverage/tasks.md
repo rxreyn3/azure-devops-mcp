@@ -79,9 +79,9 @@
     - Mock pipeline API calls and verify correct parameter passing
     - _Requirements: 1.1, 1.2, 2.1, 2.3_
 
-- [ ] 5. Implement unit tests for tool implementations
+- [x] 5. Implement unit tests for tool implementations
 
-  - [ ] 5.1 Create tests for agent tools
+  - [x] 5.1 Create tests for agent tools
 
     - Test project_health_check tool with successful and error scenarios
     - Test project_list_queues tool with various filtering options
@@ -90,7 +90,7 @@
     - Mock client responses and verify tool output format compliance
     - _Requirements: 1.1, 1.2, 2.1, 2.3_
 
-  - [ ] 5.2 Implement tests for build tools
+  - [x] 5.2 Implement tests for build tools
 
     - Test build_list tool with various filtering and pagination parameters
     - Test build_list_definitions tool with name filtering
@@ -102,7 +102,7 @@
     - Mock all client interactions and file system operations
     - _Requirements: 1.1, 1.2, 2.1, 2.3_
 
-  - [ ] 5.3 Create tests for file management tools
+  - [x] 5.3 Create tests for file management tools
     - Test list_downloads tool with various file scenarios
     - Test cleanup_downloads tool with age-based filtering
     - Test get_download_location tool for directory information
