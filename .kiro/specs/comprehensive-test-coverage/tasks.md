@@ -30,16 +30,16 @@
     - Add utilities for validating MCP response formats
     - _Requirements: 3.1, 3.2, 3.4_
 
-- [ ] 3. Implement unit tests for configuration and utilities
+- [x] 3. Implement unit tests for configuration and utilities
 
-  - [ ] 3.1 Create comprehensive tests for config validation
+  - [x] 3.1 Create comprehensive tests for config validation
 
     - Test valid configuration scenarios with all required environment variables
     - Test invalid configuration scenarios with missing or malformed variables
     - Test configuration cleanup and URL normalization logic
     - _Requirements: 1.1, 1.3, 4.2_
 
-  - [ ] 3.2 Implement tests for utility functions
+  - [x] 3.2 Implement tests for utility functions
     - Test error handling utilities with various Azure DevOps error types
     - Test formatter utilities with different input data types
     - Test validator utilities with valid and invalid inputs
