@@ -13,7 +13,38 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
-    "release": "changeset publish"
+    "release": "changeset publish",
+    "test": "vitest run",
+    "test:watch": "vitest --watch",
+    "test:watch:unit": "vitest --watch tests/unit",
+    "test:watch:integration": "vitest --watch tests/integration",
+    "test:watch:coverage": "vitest --watch --coverage",
+    "test:watch:ui": "vitest --watch --ui",
+    "test:watch:related": "vitest --watch --related",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:coverage:open": "vitest run --coverage && open coverage/index.html",
+    "test:coverage:watch": "vitest --coverage --watch",
+    "test:coverage:threshold": "vitest run --coverage --reporter=verbose",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:unit:coverage": "vitest run tests/unit --coverage",
+    "test:integration:coverage": "vitest run tests/integration --coverage",
+    "test:ci": "vitest run --coverage --reporter=verbose --reporter=json --reporter=junit --outputFile.json=./test-results.json --outputFile.junit=./test-results.xml",
+    "test:ci:unit": "vitest run tests/unit --coverage --reporter=verbose --reporter=json --outputFile.json=./test-results-unit.json",
+    "test:ci:integration": "vitest run tests/integration --coverage --reporter=verbose --reporter=json --outputFile.json=./test-results-integration.json",
+    "test:performance": "vitest run --reporter=verbose --reporter=json --outputFile.json=./test-results.json && node scripts/test-performance.js",
+    "test:silent": "vitest run --reporter=basic",
+    "test:bail": "vitest run --bail=1",
+    "test:cleanup": "VITEST_LOG_CLEANUP=true vitest run tests/utils/test-cleanup-system.test.ts",
+    "test:memory": "VITEST_LOG_CLEANUP=true vitest run --reporter=verbose",
+    "test:resources": "VITEST_LOG_CLEANUP=true vitest run tests/utils/test-cleanup-system.test.ts --reporter=verbose",
+    "test:maintenance": "node scripts/test-maintenance.js",
+    "test:maintenance:coverage": "node scripts/test-maintenance.js --coverage",
+    "test:maintenance:performance": "node scripts/test-maintenance.js --performance",
+    "test:maintenance:mocks": "node scripts/test-maintenance.js --mocks",
+    "test:maintenance:cleanup": "node scripts/test-maintenance.js --cleanup",
+    "test:coverage:trend": "node scripts/coverage-trend.js"
   },
   "keywords": [
     "mcp",
@@ -45,6 +76,8 @@
   "devDependencies": {
     "@changesets/cli": "^2.27.1",
     "@types/node": "^22.15.30",
-    "typescript": "^5.8.3"
+    "@vitest/coverage-v8": "^3.2.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
   }
 }

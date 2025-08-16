@@ -1,0 +1,34 @@
+[
+  {
+    "timestamp": "2025-08-16T13:32:14.271Z",
+    "summary": {
+      "totalDuration": 0,
+      "unitTestDuration": 0,
+      "integrationTestDuration": 0,
+      "testCount": 0,
+      "averageTestDuration": null,
+      "testsPerSecond": null
+    },
+    "thresholdChecks": {
+      "totalSuite": true,
+      "unitTests": true,
+      "integrationTests": true
+    }
+  },
+  {
+    "timestamp": "2025-08-16T13:33:05.970Z",
+    "summary": {
+      "totalDuration": 250.38058000000026,
+      "unitTestDuration": 117.10916600000027,
+      "integrationTestDuration": 112.51658000000009,
+      "testCount": 506,
+      "averageTestDuration": 0.4948232806324116,
+      "testsPerSecond": 2020.923507725717
+    },
+    "thresholdChecks": {
+      "totalSuite": true,
+      "unitTests": true,
+      "integrationTests": true
+    }
+  }
+]
