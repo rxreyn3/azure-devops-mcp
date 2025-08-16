@@ -38,7 +38,13 @@
     "test:bail": "vitest run --bail=1",
     "test:cleanup": "VITEST_LOG_CLEANUP=true vitest run tests/utils/test-cleanup-system.test.ts",
     "test:memory": "VITEST_LOG_CLEANUP=true vitest run --reporter=verbose",
-    "test:resources": "VITEST_LOG_CLEANUP=true vitest run tests/utils/test-cleanup-system.test.ts --reporter=verbose"
+    "test:resources": "VITEST_LOG_CLEANUP=true vitest run tests/utils/test-cleanup-system.test.ts --reporter=verbose",
+    "test:maintenance": "node scripts/test-maintenance.js",
+    "test:maintenance:coverage": "node scripts/test-maintenance.js --coverage",
+    "test:maintenance:performance": "node scripts/test-maintenance.js --performance",
+    "test:maintenance:mocks": "node scripts/test-maintenance.js --mocks",
+    "test:maintenance:cleanup": "node scripts/test-maintenance.js --cleanup",
+    "test:coverage:trend": "node scripts/coverage-trend.js"
   },
   "keywords": [
     "mcp",
