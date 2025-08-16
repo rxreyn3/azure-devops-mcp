@@ -95,10 +95,12 @@ jobs:
     - name: Publish test results
       uses: dorny/test-reporter@v1
       if: always()
+      continue-on-error: true
       with:
         name: Test Results (${{ matrix.node-version }})
         path: test-results.xml
         reporter: jest-junit
+        fail-on-empty: false
 
   # PR-specific quality checks
   pr-quality:
