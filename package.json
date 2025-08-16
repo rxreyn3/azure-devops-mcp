@@ -18,8 +18,19 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
+    "test:coverage:open": "vitest run --coverage && open coverage/index.html",
+    "test:coverage:watch": "vitest --coverage --watch",
+    "test:coverage:threshold": "vitest run --coverage --reporter=verbose",
     "test:unit": "vitest run tests/unit",
-    "test:integration": "vitest run tests/integration"
+    "test:integration": "vitest run tests/integration",
+    "test:unit:coverage": "vitest run tests/unit --coverage",
+    "test:integration:coverage": "vitest run tests/integration --coverage",
+    "test:ci": "vitest run --coverage --reporter=verbose --reporter=json --reporter=junit --outputFile.json=./test-results.json --outputFile.junit=./test-results.xml",
+    "test:ci:unit": "vitest run tests/unit --coverage --reporter=verbose --reporter=json --outputFile.json=./test-results-unit.json",
+    "test:ci:integration": "vitest run tests/integration --coverage --reporter=verbose --reporter=json --outputFile.json=./test-results-integration.json",
+    "test:performance": "vitest run --reporter=verbose --reporter=json --outputFile.json=./test-results.json && node scripts/test-performance.js",
+    "test:silent": "vitest run --reporter=basic",
+    "test:bail": "vitest run --bail=1"
   },
   "keywords": [
     "mcp",
