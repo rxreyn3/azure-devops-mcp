@@ -81,7 +81,7 @@ jobs:
         fail_ci_if_error: false
     
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-results-${{ matrix.node-version }}
@@ -225,7 +225,7 @@ jobs:
         npm run test:maintenance >> maintenance-report.md 2>&1 || true
     
     - name: Upload maintenance report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: maintenance-report-$(date +%Y%m%d)
         path: |
@@ -288,7 +288,7 @@ jobs:
         CI: true
     
     - name: Upload unit test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: unit-test-results
@@ -316,7 +316,7 @@ jobs:
         CI: true
     
     - name: Upload integration test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: integration-test-results
