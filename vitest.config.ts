@@ -84,13 +84,44 @@ export default defineConfig({
     globals: true,
     
     // Reporter configuration
-    reporter: process.env.CI 
+    reporters: process.env.CI 
       ? ['verbose', 'json', 'junit'] 
-      : ['verbose', 'json'],
+      : ['verbose'],
     outputFile: {
       json: './test-results.json',
       junit: './test-results.xml'
     },
+    
+    // Watch mode configuration
+    watch: !process.env.CI,
+    watchExclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/coverage/**',
+      '**/test-results/**',
+      '**/.git/**',
+      '**/test-performance.json',
+      '**/test-performance-history.json',
+      '**/*.log',
+      '**/tmp/**'
+    ],
+    
+    // Watch mode options for better development experience
+    ...((!process.env.CI) && {
+      // Clear console on re-run in watch mode
+      clearScreen: true,
+      // Show test file changes
+      changed: true,
+      // Pool options for better performance in watch mode
+      pool: 'threads',
+      poolOptions: {
+        threads: {
+          singleThread: false,
+          minThreads: 1,
+          maxThreads: 4
+        }
+      }
+    }),
     
     // Test execution monitoring
     logHeapUsage: true,
