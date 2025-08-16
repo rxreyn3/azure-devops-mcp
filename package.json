@@ -35,7 +35,10 @@
     "test:ci:integration": "vitest run tests/integration --coverage --reporter=verbose --reporter=json --outputFile.json=./test-results-integration.json",
     "test:performance": "vitest run --reporter=verbose --reporter=json --outputFile.json=./test-results.json && node scripts/test-performance.js",
     "test:silent": "vitest run --reporter=basic",
-    "test:bail": "vitest run --bail=1"
+    "test:bail": "vitest run --bail=1",
+    "test:cleanup": "VITEST_LOG_CLEANUP=true vitest run tests/utils/test-cleanup-system.test.ts",
+    "test:memory": "VITEST_LOG_CLEANUP=true vitest run --reporter=verbose",
+    "test:resources": "VITEST_LOG_CLEANUP=true vitest run tests/utils/test-cleanup-system.test.ts --reporter=verbose"
   },
   "keywords": [
     "mcp",

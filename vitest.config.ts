@@ -94,17 +94,6 @@ export default defineConfig({
     
     // Watch mode configuration
     watch: !process.env.CI,
-    watchExclude: [
-      '**/node_modules/**',
-      '**/dist/**',
-      '**/coverage/**',
-      '**/test-results/**',
-      '**/.git/**',
-      '**/test-performance.json',
-      '**/test-performance-history.json',
-      '**/*.log',
-      '**/tmp/**'
-    ],
     
     // Watch mode options for better development experience
     ...((!process.env.CI) && {
