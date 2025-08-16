@@ -34,7 +34,6 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'npm'
     
     - name: Install dependencies
       run: bun install
@@ -46,21 +45,21 @@ jobs:
       run: bun run build
     
     - name: Run tests with coverage
-      run: npm run test:ci
+      run: bun run test:ci
       env:
         CI: true
     
     - name: Run test maintenance checks
-      run: npm run test:maintenance
+      run: bun run test:maintenance
       continue-on-error: true
     
     - name: Analyze coverage trends
-      run: npm run test:coverage:trend
+      run: bun run test:coverage:trend
       continue-on-error: true
     
     - name: Check test performance
       run: |
-        npm run test:performance
+        bun run test:performance
         if [ -f "test-results.json" ]; then
           echo "## Test Performance Report" >> $GITHUB_STEP_SUMMARY
           node -e "
@@ -283,7 +282,7 @@ jobs:
       run: bun install
     
     - name: Run unit tests
-      run: npm run test:ci:unit
+      run: bun run test:ci:unit
       env:
         CI: true
     
@@ -311,7 +310,7 @@ jobs:
       run: bun install
     
     - name: Run integration tests
-      run: npm run test:ci:integration
+      run: bun run test:ci:integration
       env:
         CI: true
     
@@ -339,10 +338,10 @@ jobs:
       run: bun install
     
     - name: Run cleanup system tests
-      run: npm run test:cleanup
+      run: bun run test:cleanup
       env:
         VITEST_LOG_CLEANUP: true
     
     - name: Run fixture validation tests
-      run: npm run test -- tests/fixtures/fixtures.test.ts
+      run: bun run test -- tests/fixtures/fixtures.test.ts
       continue-on-error: true
