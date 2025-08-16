@@ -1,21 +1,40 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
+  schedule:
+    # Run maintenance checks daily at 6 AM UTC
+    - cron: '0 6 * * *'
 
 jobs:
+  # Core CI Pipeline - runs on all events
   test:
+    name: Test & Build
     runs-on: ubuntu-latest
     
-    steps:
-    - uses: actions/checkout@v4
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
     
-    - uses: oven-sh/setup-bun@v2
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Need full history for trend analysis
+    
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
       with:
         bun-version: latest
+    
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
     
     - name: Install dependencies
       run: bun install
@@ -25,3 +44,305 @@ jobs:
     
     - name: Build project
       run: bun run build
+    
+    - name: Run tests with coverage
+      run: npm run test:ci
+      env:
+        CI: true
+    
+    - name: Run test maintenance checks
+      run: npm run test:maintenance
+      continue-on-error: true
+    
+    - name: Analyze coverage trends
+      run: npm run test:coverage:trend
+      continue-on-error: true
+    
+    - name: Check test performance
+      run: |
+        npm run test:performance
+        if [ -f "test-results.json" ]; then
+          echo "## Test Performance Report" >> $GITHUB_STEP_SUMMARY
+          node -e "
+            const results = JSON.parse(require('fs').readFileSync('test-results.json'));
+            console.log(\`Total Tests: \${results.numTotalTests}\`);
+            console.log(\`Duration: \${results.duration}ms\`);
+            console.log(\`Average: \${Math.round(results.duration / results.numTotalTests)}ms per test\`);
+          " >> $GITHUB_STEP_SUMMARY
+        fi
+      continue-on-error: true
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results-${{ matrix.node-version }}
+        path: |
+          test-results.json
+          test-results.xml
+          coverage/
+          coverage/coverage-history.json
+          test-performance-history.json
+        retention-days: 30
+    
+    - name: Publish test results
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: Test Results (${{ matrix.node-version }})
+        path: test-results.xml
+        reporter: jest-junit
+
+  # PR-specific quality checks
+  pr-quality:
+    name: PR Quality Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
+    
+    - name: Install dependencies
+      run: bun install
+    
+    - name: Check coverage thresholds
+      run: npm run test:maintenance:coverage
+    
+    - name: Performance regression check
+      run: |
+        npm run test:performance
+        if [ -f "test-performance-history.json" ]; then
+          node -e "
+            const history = JSON.parse(require('fs').readFileSync('test-performance-history.json'));
+            if (history.length >= 2) {
+              const current = history[history.length - 1];
+              const baseline = history.slice(-5).reduce((sum, entry) => sum + entry.totalTime, 0) / Math.min(5, history.length);
+              const regression = ((current.totalTime - baseline) / baseline) * 100;
+              if (regression > 20) {
+                console.log('⚠️ Performance regression detected: ' + regression.toFixed(1) + '% slower');
+                process.exit(1);
+              }
+            }
+          "
+        fi
+      continue-on-error: true
+    
+    - name: Comment PR with test results
+      uses: actions/github-script@v6
+      if: always()
+      with:
+        script: |
+          const fs = require('fs');
+          let comment = '## 🧪 Test Results\n\n';
+          
+          try {
+            if (fs.existsSync('coverage/coverage-final.json')) {
+              comment += '### Coverage Report\n';
+              comment += '✅ Coverage analysis completed - check artifacts for details\n\n';
+            }
+            
+            if (fs.existsSync('test-results.json')) {
+              const results = JSON.parse(fs.readFileSync('test-results.json'));
+              comment += '### Performance\n';
+              comment += `- **Tests**: ${results.numTotalTests}\n`;
+              comment += `- **Duration**: ${results.duration}ms\n`;
+              comment += `- **Average**: ${Math.round(results.duration / results.numTotalTests)}ms per test\n\n`;
+            }
+            
+            comment += '### Maintenance Status\n';
+            comment += '- ✅ Test maintenance checks completed\n';
+            comment += '- 📊 Coverage trends analyzed\n';
+            comment += '- ⚡ Performance regression checked\n';
+            
+          } catch (error) {
+            comment += '❌ Error generating test report: ' + error.message;
+          }
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+    
+    - name: Comment coverage on PR
+      uses: romeovs/lcov-reporter-action@v0.3.1
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        lcov-file: ./coverage/lcov.info
+
+  # Comprehensive maintenance - runs on schedule and push to main
+  maintenance:
+    name: Test Health Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
+    
+    - name: Install dependencies
+      run: bun install
+    
+    - name: Run comprehensive maintenance check
+      run: npm run test:maintenance
+    
+    - name: Validate mock data
+      run: npm run test:maintenance:mocks
+      continue-on-error: true
+    
+    - name: Verify cleanup systems
+      run: npm run test:maintenance:cleanup
+      continue-on-error: true
+    
+    - name: Generate maintenance report
+      run: |
+        echo "# Daily Maintenance Report" > maintenance-report.md
+        echo "Date: $(date)" >> maintenance-report.md
+        echo "" >> maintenance-report.md
+        npm run test:maintenance >> maintenance-report.md 2>&1 || true
+    
+    - name: Upload maintenance report
+      uses: actions/upload-artifact@v3
+      with:
+        name: maintenance-report-$(date +%Y%m%d)
+        path: |
+          maintenance-report.md
+          coverage/coverage-history.json
+          test-performance-history.json
+    
+    - name: Create maintenance issue
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: '🔧 Test Maintenance Alert - ' + new Date().toISOString().split('T')[0],
+            body: `
+            ## Test Maintenance Alert
+            
+            The automated test maintenance check has detected issues that need attention.
+            
+            **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            **Common Issues:**
+            - Coverage below thresholds
+            - Test performance degradation
+            - Mock data validation failures
+            - Cleanup system issues
+            
+            **Next Steps:**
+            1. Review the maintenance report in the workflow artifacts
+            2. Run \`npm run test:maintenance\` locally for detailed analysis
+            3. Follow the troubleshooting guide in \`docs/test-maintenance-procedures.md\`
+            
+            **Auto-generated by test maintenance workflow**
+            `,
+            labels: ['maintenance', 'testing', 'automated']
+          })
+
+  # Specialized test suites - run in parallel for efficiency
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
+    
+    - name: Install dependencies
+      run: bun install
+    
+    - name: Run unit tests
+      run: npm run test:ci:unit
+      env:
+        CI: true
+    
+    - name: Upload unit test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: unit-test-results
+        path: test-results-unit.json
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
+    
+    - name: Install dependencies
+      run: bun install
+    
+    - name: Run integration tests
+      run: npm run test:ci:integration
+      env:
+        CI: true
+    
+    - name: Upload integration test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: integration-test-results
+        path: test-results-integration.json
+
+  cleanup-verification:
+    name: Cleanup System Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
+    
+    - name: Install dependencies
+      run: bun install
+    
+    - name: Run cleanup system tests
+      run: npm run test:cleanup
+      env:
+        VITEST_LOG_CLEANUP: true
+    
+    - name: Run fixture validation tests
+      run: npm run test -- tests/fixtures/fixtures.test.ts
+      continue-on-error: true

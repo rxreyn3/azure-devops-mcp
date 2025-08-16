@@ -1,7 +1,7 @@
 // Global test setup file
 // This file runs before all tests
 
-import { setupEnhancedTests } from './utils/enhanced-test-setup.js';
+import { setupEnhancedTests } from './utils/enhanced-test-setup';
 
 // Set up environment variables for testing
 process.env.NODE_ENV = 'test';

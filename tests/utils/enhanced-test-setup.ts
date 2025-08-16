@@ -5,8 +5,8 @@
  * This module provides helper functions and automatic integration with Vitest lifecycle hooks.
  */
 import { beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
-import { testCleanupManager, CleanupOptions, CleanupReport } from './test-cleanup-manager.js';
-import { testResourceManager, ResourceType, TestResource } from './test-resource-manager.js';
+import { testCleanupManager, CleanupOptions, CleanupReport } from './test-cleanup-manager';
+import { testResourceManager, ResourceType, TestResource } from './test-resource-manager';
 
 export interface EnhancedTestOptions {
   enableCleanup?: boolean;
